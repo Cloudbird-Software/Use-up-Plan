@@ -1,6 +1,6 @@
 // Command use-up-plan 是 LLM 订阅额度「智能调度 + 真实份额审计」系统的服务入口。
 //
-// 当前状态：初始化完成，Phase 0（QDL 类型与语义内核）尚未开始。
+// 当前子命令：version / audit（端到端审计报告，Phase 1 收口）。
 // 需求与全量设计见仓库根 Intent.md；模块布局与依赖提案见 docs/ARCHITECTURE.md。
 package main
 
@@ -16,6 +16,8 @@ const usage = `use-up-plan —— LLM 订阅额度调度与审计系统（开发
 
 用法：
   use-up-plan version   打印版本
+  use-up-plan audit     端到端审计报告（plan + 事件库 [+ Claude 日志导入]）
+                        详细参数见 use-up-plan audit -h
 `
 
 func main() {
@@ -26,6 +28,8 @@ func main() {
 	switch os.Args[1] {
 	case "version":
 		fmt.Println("use-up-plan", version)
+	case "audit":
+		os.Exit(runAudit(os.Args[2:]))
 	default:
 		fmt.Fprintf(os.Stderr, "未知子命令 %q\n%s", os.Args[1], usage)
 		os.Exit(2)
