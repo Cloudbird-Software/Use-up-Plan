@@ -57,6 +57,13 @@
   探测（并查集找共享尺度自由度的参数集合）、标度规范校验（每个组至少一个
   frozen 参数）、可解释读数（容量等价美元/倍率偏离/缓存折扣证据）；整数
   吸附（Laplace 近似 90% CI + 候选/连分数逼近 + 似然比复核 χ²₀.₉₉(1)/2=3.317）。
+- internal/estimate（B5）：Intent §4.6 离线后验——自适应随机游走
+  Metropolis-Hastings（z 空间采样消解 box 约束；预热期 Welford 学样本
+  协方差 + Robbins-Monro 步长逼近目标接受率，采样期 proposal 冻结保证
+  正确平稳分布；Geyer 初始正序列 ESS 诊断；PCG 种子确定性复现）；
+  `ParamUpdates` 产出 reason=offline 的 ParamUpdateEvent——与在线点估计
+  写同一事件流；Phase 1 验收：C 后验 90% 区间宽度 < 中位数 40% 且覆盖
+  真值，与 Laplace 口径同量级（S2 对比实验）。
 - qdl/semantics 新增 `model_family` 作用域层级与模型族前缀匹配——支撑
   Claude Sonnet/Opus 周限专用窗；`ChargeOne` 倍率改为乘在 `(flat+Σ)` 整体，
   per-request 桶（flat=1、terms 空）的模型倍率由此生效。
