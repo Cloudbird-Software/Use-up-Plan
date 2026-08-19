@@ -13,6 +13,9 @@ import (
 // EstimateOptions 是在线点估计的运行参数。
 type EstimateOptions struct {
 	MaxIterations int // 主迭代上限（默认 200；warm-start 下通常远小于此）
+	// Freeze 把参数临时冻结在给定值（B4 整数吸附后的重拟合）：冻结参数
+	// 退出自由空间，值合入 base。spec 内 Frozen 参数不受此字段影响。
+	Freeze map[string]float64
 }
 
 func (o EstimateOptions) withDefaults() EstimateOptions {
@@ -41,7 +44,17 @@ type Result struct {
 // theta0 是 warm-start 起点（上一轮估计或先验中位数；缺的参数自动从先验补）。
 func Estimate(ds *Dataset, base qdl.ParamPoint, theta0 qdl.ParamPoint, opts EstimateOptions) (*Result, error) {
 	opts = opts.withDefaults()
-	prob, err := NewProblem(ds, base, theta0)
+	if len(opts.Freeze) > 0 {
+		merged := qdl.ParamPoint{}
+		for k, v := range base {
+			merged[k] = v
+		}
+		for k, v := range opts.Freeze {
+			merged[k] = v
+		}
+		base = merged
+	}
+	prob, err := NewProblem(ds, base, theta0, opts.Freeze)
 	if err != nil {
 		return nil, err
 	}

@@ -37,11 +37,18 @@ const (
 //     不设假设 → 恒等（正性由 NLL 的 +Inf 悬崖兜底）
 //   - lognormal：定义域正 → exp 变换（lb=0）
 //
+// extraFrozen 把额外参数临时退出自由空间（B4 整数吸附后的重拟合：
+// 吸附值由调用方合入 base，参数不再进 IDs；吸附的级联效应——自由度
+// 每减一，其余参数的 CI 收窄一轮——由 Snap 的逐个吸附循环实现）。
+//
 // 变换是往返安全的唯一保证：θ 贴近界外时 physToZ 会把值钳回界内，
 // ToZ∘FromZ 恒等（TestParamSpaceRoundTrip 验收）。
-func NewParamSpace(spec *qdl.PlanSpec) (*ParamSpace, error) {
+func NewParamSpace(spec *qdl.PlanSpec, extraFrozen map[string]float64) (*ParamSpace, error) {
 	if spec == nil {
 		return nil, fmt.Errorf("estimate: NewParamSpace(nil spec)")
+	}
+	if extraFrozen == nil {
+		extraFrozen = map[string]float64{}
 	}
 	ps := &ParamSpace{
 		Bounds: map[string][2]float64{},
@@ -50,7 +57,7 @@ func NewParamSpace(spec *qdl.PlanSpec) (*ParamSpace, error) {
 	}
 	for i := range spec.Parameters {
 		p := &spec.Parameters[i]
-		if p.Frozen {
+		if p.Frozen || containsKey(extraFrozen, p.ID) {
 			ps.BaseIDs = append(ps.BaseIDs, p.ID)
 			continue
 		}
@@ -85,6 +92,12 @@ func NewParamSpace(spec *qdl.PlanSpec) (*ParamSpace, error) {
 
 // N 返回自由参数个数。
 func (ps *ParamSpace) N() int { return len(ps.IDs) }
+
+// containsKey 报告 map 是否含键（map[string]float64 的集合用法）。
+func containsKey(m map[string]float64, k string) bool {
+	_, ok := m[k]
+	return ok
+}
 
 // ToZ 把物理参数映射到无界优化空间。θ 缺失的参数由 priorInitial 补。
 func (ps *ParamSpace) ToZ(theta qdl.ParamPoint) []float64 {
@@ -204,17 +217,18 @@ type Problem struct {
 	scale []float64      // 每维缩放因子（当前恒 1；z = zRef + S·u）
 }
 
-// NewProblem 组装优化问题。
+// NewProblem 组装优化问题。extraFrozen 是吸附后临时冻结的参数集合
+// （值必须已合入 base）。
 //
 // 优化直接在 z 空间进行（u ≡ z，scale 恒 1）：gonum 的 InitDirection 已把
 // 首步归一为 1/‖g‖，无需额外缩放；早期实验中按 1/|g| 缩放反而把单位步长
 // 压到 z 的 1e-5 量级，线搜索被迫无限倍增步长后撞悬崖失败。zRef/scale
-// 结构保留——B4 的 gauge fixing 若需要重参数化可在此挂接。
-func NewProblem(ds *Dataset, base qdl.ParamPoint, theta0 qdl.ParamPoint) (*Problem, error) {
+// 结构保留——吸附重拟合用「冻结 + warm-start」而非重参数化实现级联。
+func NewProblem(ds *Dataset, base qdl.ParamPoint, theta0 qdl.ParamPoint, extraFrozen map[string]float64) (*Problem, error) {
 	if ds == nil {
 		return nil, fmt.Errorf("estimate: NewProblem(nil dataset)")
 	}
-	space, err := NewParamSpace(ds.Spec)
+	space, err := NewParamSpace(ds.Spec, extraFrozen)
 	if err != nil {
 		return nil, err
 	}
