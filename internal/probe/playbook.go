@@ -51,11 +51,13 @@ type EvidenceNeed struct {
 }
 
 // Discriminator 声明一个确定性判别式（Intent §4.3：「不需要统计的判别式，
-// 优先用」）。Kind 是 C3 实现的算法封闭集，此处只做登记与校验。
+// 优先用」）。Kind 是 C3 实现的算法封闭集；Mapping 把算法的归一化 finding
+// 翻译成本剧本的结构候选——算法与候选解耦，同一算法可服务不同候选集。
 type Discriminator struct {
-	ID          string `yaml:"id"`
-	Description string `yaml:"description"`
-	Kind        string `yaml:"kind"` // resets_at_constancy | cliff_vs_stair | step_counting | null_presence | pool_sync
+	ID          string            `yaml:"id"`
+	Description string            `yaml:"description"`
+	Kind        string            `yaml:"kind"`    // resets_at_constancy | cliff_vs_stair | step_counting | null_presence | pool_sync
+	Mapping     map[string]string `yaml:"mapping"` // finding → candidate（键值都在封闭集内）
 }
 
 // validDiscriminatorKinds 是判别式算法的封闭集（C3 逐个落地）。
@@ -65,6 +67,16 @@ var validDiscriminatorKinds = map[string]bool{
 	"step_counting":       true, // turn/request 步进计数（prompt 粒度）
 	"null_presence":       true, // null 字段出现性（seven_day_opus 语义）
 	"pool_sync":           true, // 双桶同步上涨（共池判定）
+}
+
+// findingsByKind 是每种判别式的归一化 finding 封闭集（discriminate.go 的
+// 输出词汇表）。Mapping 的键必须落在对应 Kind 的集合内。
+var findingsByKind = map[string]map[string]bool{
+	"resets_at_constancy": {FindingConstant: true, FindingShifting: true},
+	"cliff_vs_stair":      {FindingCliff: true, FindingStair: true},
+	"step_counting":       {FindingTurn: true, FindingRequest: true, FindingStep: true},
+	"null_presence":       {FindingAppearsAfterUse: true, FindingStaysNull: true},
+	"pool_sync":           {FindingSynchronized: true, FindingIndependent: true},
 }
 
 // Playbook 是一个结构探针剧本：一个问题 + 候选结论 + 证据需求 + 判别式
@@ -124,6 +136,21 @@ func (p *Playbook) Validate() error {
 		}
 		if !validDiscriminatorKinds[d.Kind] {
 			return fmt.Errorf("probe: 剧本 %s 判别式 %s kind %q 不在封闭集", p.ID, d.ID, d.Kind)
+		}
+		if len(d.Mapping) == 0 {
+			return fmt.Errorf("probe: 剧本 %s 判别式 %s 缺 mapping（finding 无法翻译成候选，判定永远落空）", p.ID, d.ID)
+		}
+		candSet := map[string]bool{}
+		for _, c := range p.Candidates {
+			candSet[c] = true
+		}
+		for finding, cand := range d.Mapping {
+			if !findingsByKind[d.Kind][finding] {
+				return fmt.Errorf("probe: 剧本 %s 判别式 %s mapping 键 %q 不在 kind %s 的 finding 封闭集", p.ID, d.ID, finding, d.Kind)
+			}
+			if !candSet[cand] {
+				return fmt.Errorf("probe: 剧本 %s 判别式 %s mapping[%s] = %q 不在候选集内", p.ID, d.ID, finding, cand)
+			}
 		}
 	}
 	return nil

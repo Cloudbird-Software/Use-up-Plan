@@ -15,6 +15,7 @@ discriminators:
   - id: synchronized_rise
     description: 只用 Opus 期间 seven_day 与 seven_day_opus 同步上涨 → 共池；只有 opus 桶涨 → 独立池
     kind: pool_sync
+    mapping: {synchronized: shared_pool, independent: independent_pools}
 notes: >
   被动观测即可（正常使用中自会只用某族模型）。共池语义决定
   scope.level 的 cross_product_pool 判定——错判会让 LP 把同一份额度

@@ -15,6 +15,7 @@ discriminators:
   - id: appear_after_use
     description: 用一点 Opus 后字段出现 → 未使用不报（窗存在）；仍 null → 窗不存在
     kind: null_presence
+    mapping: {appears_after_use: window_unused, stays_null: window_absent}
 notes: >
   一次实验。判定「窗不存在」可把 C_7d_opus 从参数空间删除——维度坍缩
   让其余参数的 CI 收窄。

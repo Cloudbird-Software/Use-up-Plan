@@ -83,8 +83,11 @@ func TestPlaybookValidateRejects(t *testing.T) {
 		pb := &Playbook{
 			ID: "p", Question: "q", BucketGlob: "b*",
 			Candidates: []string{"a", "b"}, Cost: CostPassive,
-			Needs:          []EvidenceNeed{{Semantic: qdl.SemUsedPct, MinCount: 1}},
-			Discriminators: []Discriminator{{ID: "d", Description: "e", Kind: "cliff_vs_stair"}},
+			Needs: []EvidenceNeed{{Semantic: qdl.SemUsedPct, MinCount: 1}},
+			Discriminators: []Discriminator{{
+				ID: "d", Description: "e", Kind: "cliff_vs_stair",
+				Mapping: map[string]string{FindingCliff: "a", FindingStair: "b"},
+			}},
 		}
 		mut(pb)
 		return pb
@@ -99,6 +102,9 @@ func TestPlaybookValidateRejects(t *testing.T) {
 		"min_count 零": func(p *Playbook) { p.Needs[0].MinCount = 0 },
 		"无判别式":        func(p *Playbook) { p.Discriminators = nil },
 		"判别式 kind 越界": func(p *Playbook) { p.Discriminators[0].Kind = "magic" },
+		"缺 mapping":   func(p *Playbook) { p.Discriminators[0].Mapping = nil },
+		"mapping 键越界": func(p *Playbook) { p.Discriminators[0].Mapping = map[string]string{"vibes": "a"} },
+		"mapping 值越界": func(p *Playbook) { p.Discriminators[0].Mapping = map[string]string{FindingCliff: "zzz"} },
 	}
 	for name, mut := range cases {
 		if err := base(mut).Validate(); err == nil {

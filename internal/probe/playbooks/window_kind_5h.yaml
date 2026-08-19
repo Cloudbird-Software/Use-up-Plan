@@ -16,9 +16,11 @@ discriminators:
   - id: resets_at_constancy
     description: 窗内 resets_at 恒定 → anchored；随每次消耗后延 → sliding
     kind: resets_at_constancy
+    mapping: {constant: tumbling_anchored_on_first_use, shifting: sliding_exact}
   - id: cliff_vs_stair
     description: utilization 断崖归零 → tumbling；阶梯衰减 → sliding
     kind: cliff_vs_stair
+    mapping: {cliff: tumbling_anchored_on_first_use, stair: sliding_exact}
 notes: >
   数据需求：2~3 天被动观测（Intent §4.3）。窗口边界套利的存在性判定
   完全依赖此剧本——结构错了，数值再准也没用。

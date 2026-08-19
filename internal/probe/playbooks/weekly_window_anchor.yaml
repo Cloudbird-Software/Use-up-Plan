@@ -15,9 +15,11 @@ discriminators:
   - id: resets_at_weekday_constancy
     description: resets_at 始终落在同一星期几同一时刻 → 账号锚定，且锚点即被反推
     kind: resets_at_constancy
+    mapping: {constant: tumbling_account_anchored, shifting: sliding_exact}
   - id: decay_shape
     description: 周界整窗归零（断崖）→ tumbling；连续衰减 → rolling
     kind: cliff_vs_stair
+    mapping: {cliff: tumbling_account_anchored, stair: sliding_exact}
 notes: >
   数据需求：2 周被动观测（Intent §4.3）。锚点判定成功后写回 spec 的
   anchor_utc 字段（结构判定产出永久性知识）。
