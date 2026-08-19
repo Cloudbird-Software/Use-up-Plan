@@ -10,6 +10,7 @@ import (
 func validPlan() *PlanSpec {
 	return &PlanSpec{
 		ID: "t/plan@2026-08", Vendor: "t", PlanName: "Plan",
+		Period:        "month",
 		EffectiveFrom: time.Now(),
 		Parameters: []Parameter{
 			{ID: "t.C", Unit: "usd_equivalent", Prior: Point(100), Provenance: ProvenanceAssumed},

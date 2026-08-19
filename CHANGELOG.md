@@ -10,6 +10,13 @@
 - docs/ROADMAP.md：Phase 0–6 开发规划（PR 序列 / 验收标准 / 选型待决 / 风险登记）。
 - archlint MOD-1 执法面收口（评审 #1）：_test.go 的 import（TestImports / XTestImports）
   纳入深导入检查；build tag 盲区登记为 ROADMAP R7 已知限制。
+- internal/qdl：QDL 类型系统落地（A1/A2）——维度分类学、Coeff 双态系数、ISO 8601
+  Duration、窗口/作用域/扣减规则/观测绑定/通道/PlanSpec 与安全契约校验。
+- internal/qdl 加载器（A3）：`Load`/`LoadBytes`/`Marshal`——YAML 严格解码、文档内
+  `$ref` 展开（JSON pointer 扩展 + 深拷贝防共享）、缺省规范化、封闭集校验、
+  黄金样本往返测试与 fuzz（goccy/go-yaml 落地）。
+- 全类型 YAML 序列化契约：往返稳定（`LoadBytes(Marshal(s))` 语义等价），空集合
+  `omitempty` 收敛，类别型离散分布 `probs`+`categories` 归一到 `CategoryProbs`。
 
 ### Changed
 

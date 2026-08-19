@@ -37,3 +37,24 @@ func (q Quantize) Apply(x float64) float64 {
 	}
 	return n * q.Step
 }
+
+// UnmarshalYAML 应用 Pydantic 等价缺省（Intent §2.1 Quantize()）：mode 缺省 none、
+// step 缺省 1。
+func (q *Quantize) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var raw struct {
+		Mode QuantizeMode `yaml:"mode"`
+		Step *float64     `yaml:"step"`
+	}
+	if err := unmarshal(&raw); err != nil {
+		return err
+	}
+	q.Mode = raw.Mode
+	if q.Mode == "" {
+		q.Mode = QuantizeNone
+	}
+	q.Step = 1
+	if raw.Step != nil {
+		q.Step = *raw.Step
+	}
+	return nil
+}

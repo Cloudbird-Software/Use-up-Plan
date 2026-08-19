@@ -32,14 +32,14 @@ const (
 // Window 描述一个桶的时间语义。KindCandidates 必须不少于 1 个；
 // KindPosterior 为结构辨识（estimate 模块）回写的后验。
 type Window struct {
-	KindCandidates      []WindowKind           `yaml:"kind_candidates"`
-	KindPosterior       map[WindowKind]float64 `yaml:"kind_posterior"` // kind -> 概率；nil = 尚未辨识
-	Length              Duration               `yaml:"length"`         // 窗长（ISO 8601 或 Go 原生时长）；token_bucket/never 可为零值
-	AnchorUTC           string                 `yaml:"anchor_utc"`     // 账号锚点，如 "WED 20:00"；"UNKNOWN" = 待从 resets_at 序列反推
-	CalendarAlign       string                 `yaml:"calendar_align"` // utc_midnight | local_midnight | billing_day
-	RefillRate          Coeff                  `yaml:"refill_rate"`    // token_bucket：单位/秒
-	Burst               Coeff                  `yaml:"burst"`          // token_bucket：突发容量
-	ExpiresAt           *time.Time             `yaml:"expires_at"`     // one_shot 的绝对过期时刻
+	KindCandidates      []WindowKind           `yaml:"kind_candidates,omitempty"`
+	KindPosterior       map[WindowKind]float64 `yaml:"kind_posterior,omitempty"` // kind -> 概率；nil = 尚未辨识
+	Length              Duration               `yaml:"length"`                   // 窗长（ISO 8601 或 Go 原生时长）；token_bucket/never 可为零值
+	AnchorUTC           string                 `yaml:"anchor_utc"`               // 账号锚点，如 "WED 20:00"；"UNKNOWN" = 待从 resets_at 序列反推
+	CalendarAlign       string                 `yaml:"calendar_align"`           // utc_midnight | local_midnight | billing_day
+	RefillRate          Coeff                  `yaml:"refill_rate"`              // token_bucket：单位/秒
+	Burst               Coeff                  `yaml:"burst"`                    // token_bucket：突发容量
+	ExpiresAt           *time.Time             `yaml:"expires_at"`               // one_shot 的绝对过期时刻
 	Reset               ResetPolicy            `yaml:"reset"`
 	RolloverCapMultiple *float64               `yaml:"rollover_cap_multiple"` // rollover_capped 的 k
 }
@@ -60,4 +60,50 @@ func (w *Window) Kind() WindowKind {
 		return ""
 	}
 	return w.KindCandidates[0]
+}
+
+// UnmarshalYAML 应用 Pydantic 等价缺省：reset 缺省 zero；refill_rate/burst
+// 缺省 Const(0)（非 token_bucket 窗口无回补语义）。后验键为字符串、此处转
+// WindowKind（未知键由 Validate 的封闭集校验拒绝）。
+func (w *Window) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var raw struct {
+		KindCandidates      []WindowKind       `yaml:"kind_candidates"`
+		KindPosterior       map[string]float64 `yaml:"kind_posterior"`
+		Length              Duration           `yaml:"length"`
+		AnchorUTC           string             `yaml:"anchor_utc"`
+		CalendarAlign       string             `yaml:"calendar_align"`
+		RefillRate          *Coeff             `yaml:"refill_rate"`
+		Burst               *Coeff             `yaml:"burst"`
+		ExpiresAt           *time.Time         `yaml:"expires_at"`
+		Reset               ResetPolicy        `yaml:"reset"`
+		RolloverCapMultiple *float64           `yaml:"rollover_cap_multiple"`
+	}
+	if err := unmarshal(&raw); err != nil {
+		return err
+	}
+	w.KindCandidates = raw.KindCandidates
+	if len(raw.KindPosterior) > 0 {
+		w.KindPosterior = make(map[WindowKind]float64, len(raw.KindPosterior))
+		for k, v := range raw.KindPosterior {
+			w.KindPosterior[WindowKind(k)] = v
+		}
+	}
+	w.Length = raw.Length
+	w.AnchorUTC = raw.AnchorUTC
+	w.CalendarAlign = raw.CalendarAlign
+	w.RefillRate = Const(0)
+	if raw.RefillRate != nil {
+		w.RefillRate = *raw.RefillRate
+	}
+	w.Burst = Const(0)
+	if raw.Burst != nil {
+		w.Burst = *raw.Burst
+	}
+	w.ExpiresAt = raw.ExpiresAt
+	w.Reset = raw.Reset
+	if w.Reset == "" {
+		w.Reset = ResetZero
+	}
+	w.RolloverCapMultiple = raw.RolloverCapMultiple
+	return nil
 }

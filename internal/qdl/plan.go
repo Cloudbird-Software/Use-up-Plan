@@ -10,7 +10,7 @@ import (
 type RiskProfile struct {
 	TOSViolationClass string   `yaml:"tos_violation_class"` // none | grey | explicit_breach
 	BanHazardMonthly  float64  `yaml:"ban_hazard_monthly"`
-	BanBlastRadius    []string `yaml:"ban_blast_radius"` // 连坐范围（账号/支付方式/IP 拓扑）
+	BanBlastRadius    []string `yaml:"ban_blast_radius,omitempty"` // 连坐范围（账号/支付方式/IP 拓扑）
 	PrepaidAtRiskUSD  float64  `yaml:"prepaid_at_risk_usd"`
 }
 
@@ -31,7 +31,7 @@ type Grant struct {
 // 若拟合残差显著，残差本身就是厂商模糊定价关系的定量证据。
 type CalibrationGauge struct {
 	Mode               string          `yaml:"mode"` // anchor_to_vendor_ratecard | anchor_to_reference_model_usd | anchor_to_observed_absolute
-	RatecardUSDPerUnit map[Dim]float64 `yaml:"ratecard_usd_per_unit"`
+	RatecardUSDPerUnit map[Dim]float64 `yaml:"ratecard_usd_per_unit,omitempty"`
 	ReferenceModel     string          `yaml:"reference_model"`
 	Note               string          `yaml:"note"`
 }
@@ -48,10 +48,10 @@ type PlanSpec struct {
 	VendorDocSnapshotHash string           `yaml:"vendor_doc_snapshot_hash"` // 页面语义 diff 用
 	EffectiveFrom         time.Time        `yaml:"effective_from"`
 	EffectiveUntil        *time.Time       `yaml:"effective_until"`
-	Buckets               []Bucket         `yaml:"buckets"`
-	Channels              []Channel        `yaml:"channels"`
-	Grants                []Grant          `yaml:"grants"`
-	Parameters            []Parameter      `yaml:"parameters"`
+	Buckets               []Bucket         `yaml:"buckets,omitempty"`
+	Channels              []Channel        `yaml:"channels,omitempty"`
+	Grants                []Grant          `yaml:"grants,omitempty"`
+	Parameters            []Parameter      `yaml:"parameters,omitempty"`
 	Gauge                 CalibrationGauge `yaml:"gauge"`
 	Risk                  RiskProfile      `yaml:"risk"`
 }
@@ -105,8 +105,12 @@ func (p *PlanSpec) ParamIDs() []string {
 //   - Grant.BucketID 必须指向存在的桶；ObsBinding.Trust ∈ [0,1]
 //   - 空 Overflow 规范化为 [hard_block]（安全缺省）
 func (p *PlanSpec) Validate() error {
+	if err := p.validateClosedSets(); err != nil {
+		return err
+	}
 	paramIDs := map[string]bool{}
-	for _, prm := range p.Parameters {
+	for i := range p.Parameters {
+		prm := &p.Parameters[i]
 		if prm.ID == "" {
 			return fmt.Errorf("qdl: 存在空参数 ID")
 		}
@@ -114,6 +118,17 @@ func (p *PlanSpec) Validate() error {
 			return fmt.Errorf("qdl: 参数 ID %q 重复", prm.ID)
 		}
 		paramIDs[prm.ID] = true
+		if err := prm.Prior.Validate(); err != nil {
+			return fmt.Errorf("qdl: 参数 %q prior: %w", prm.ID, err)
+		}
+		if prm.Posterior != nil {
+			if err := prm.Posterior.Validate(); err != nil {
+				return fmt.Errorf("qdl: 参数 %q posterior: %w", prm.ID, err)
+			}
+		}
+		if prm.Bounds[0] != nil && prm.Bounds[1] != nil && *prm.Bounds[0] > *prm.Bounds[1] {
+			return fmt.Errorf("qdl: 参数 %q bounds lower=%v > upper=%v", prm.ID, *prm.Bounds[0], *prm.Bounds[1])
+		}
 		if prm.Provenance == ProvenanceVendorDoc && prm.Frozen {
 			return fmt.Errorf("qdl: 参数 %q 来源为 vendor_doc 却 frozen——公开声称值永不冻结", prm.ID)
 		}

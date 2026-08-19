@@ -14,7 +14,7 @@ type Reliability struct {
 // SpoofingSpec 声明通道需要伪装成官方客户端的细节及 ToS 风险注记。
 type SpoofingSpec struct {
 	UserAgent                  string            `yaml:"user_agent"`
-	RequiredHeaders            map[string]string `yaml:"required_headers"`
+	RequiredHeaders            map[string]string `yaml:"required_headers,omitempty"`
 	SystemPromptPrefixRequired bool              `yaml:"system_prompt_prefix_required"`
 	TOSNote                    string            `yaml:"tos_note"`
 }
@@ -24,20 +24,20 @@ type ModelBinding struct {
 	LogicalModel  string             `yaml:"logical_model"` // 内部统一名，如 "tier1-reasoner"
 	VendorModelID string             `yaml:"vendor_model_id"`
 	Family        string             `yaml:"family"`
-	Aliases       []string           `yaml:"aliases"`
-	Capabilities  []string           `yaml:"capabilities"` // tool_use / vision / caching ...
-	Tokenizer     string             `yaml:"tokenizer"`    // 跨厂商 token 归一用（token 密度差 20–30%）
+	Aliases       []string           `yaml:"aliases,omitempty"`
+	Capabilities  []string           `yaml:"capabilities,omitempty"` // tool_use / vision / caching ...
+	Tokenizer     string             `yaml:"tokenizer"`              // 跨厂商 token 归一用（token 密度差 20–30%）
 	ContextWindow *int               `yaml:"context_window"`
-	QualityScores map[string]float64 `yaml:"quality_scores"` // 私有 eval 结果 → 进 LP 价值函数 v_jk
+	QualityScores map[string]float64 `yaml:"quality_scores,omitempty"` // 私有 eval 结果 → 进 LP 价值函数 v_jk
 }
 
 // AdmissionPolicy 是通道准入约束（非累积的瞬时约束在此，不建桶）。
 type AdmissionPolicy struct {
-	Limits               map[InstantDim]Coeff `yaml:"limits"`         // concurrency / context_tokens_peak / ...
-	AllowedModels        []string             `yaml:"allowed_models"` // nil = 全部
-	DeniedModels         []string             `yaml:"denied_models"`
-	RequiredCapabilities []string             `yaml:"required_capabilities"`
-	ForbiddenFeatures    []string             `yaml:"forbidden_features"`
+	Limits               map[InstantDim]Coeff `yaml:"limits,omitempty"`         // concurrency / context_tokens_peak / ...
+	AllowedModels        []string             `yaml:"allowed_models,omitempty"` // nil = 全部
+	DeniedModels         []string             `yaml:"denied_models,omitempty"`
+	RequiredCapabilities []string             `yaml:"required_capabilities,omitempty"`
+	ForbiddenFeatures    []string             `yaml:"forbidden_features,omitempty"`
 }
 
 // Channel 是一个调用通道（CLI OAuth / OpenAI 兼容端点 / web）。
@@ -46,8 +46,8 @@ type Channel struct {
 	Protocol         string          `yaml:"protocol"` // anthropic_messages | openai_chat | openai_responses | gemini | custom_cli | web
 	BaseURL          string          `yaml:"base_url"`
 	Auth             string          `yaml:"auth"` // oauth_bearer | api_key | cookie_session
-	Models           []ModelBinding  `yaml:"models"`
+	Models           []ModelBinding  `yaml:"models,omitempty"`
 	Admission        AdmissionPolicy `yaml:"admission"`
 	Reliability      Reliability     `yaml:"reliability"`
-	SpoofingRequired *SpoofingSpec   `yaml:"spoofing_required"`
+	SpoofingRequired *SpoofingSpec   `yaml:"spoofing_required,omitempty"`
 }

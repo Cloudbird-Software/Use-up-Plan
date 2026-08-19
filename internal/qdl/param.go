@@ -39,16 +39,105 @@ const (
 //	{kind: discrete,  categories: [turn, request], probs: [0.5, 0.5]}  // 类别型（结构未知数）
 type Distribution struct {
 	Kind          DistributionKind   `yaml:"kind"`
-	Params        map[string]float64 `yaml:"params"` // point: value / normal|lognormal: mu,sigma / uniform: low,high
-	Values        []float64          `yaml:"values"` // 数值型离散分布
-	Probs         []float64          `yaml:"probs"`
-	Categories    []string           `yaml:"categories"` // 类别型离散分布（结构辨识用，如 prompt 粒度 turn/request/step）
-	CategoryProbs []float64          `yaml:"category_probs"`
+	Params        map[string]float64 `yaml:"params,omitempty"` // point: value / normal|lognormal: mu,sigma / uniform: low,high
+	Values        []float64          `yaml:"values,omitempty"` // 数值型离散分布
+	Probs         []float64          `yaml:"probs,omitempty"`
+	Categories    []string           `yaml:"categories,omitempty"` // 类别型离散分布（结构辨识用，如 prompt 粒度 turn/request/step）
+	CategoryProbs []float64          `yaml:"category_probs,omitempty"`
+}
+
+// UnmarshalYAML 归一类别型离散分布的书写形态（Intent §2.1 契约：类别型用
+// `probs` 配 `categories`）。加载后类别型概率统一存在 CategoryProbs，
+// 数值型存在 Probs——往返稳定，estimate 模块无需二义分派。
+func (d *Distribution) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var raw struct {
+		Kind          DistributionKind   `yaml:"kind"`
+		Params        map[string]float64 `yaml:"params"`
+		Values        []float64          `yaml:"values"`
+		Probs         []float64          `yaml:"probs"`
+		Categories    []string           `yaml:"categories"`
+		CategoryProbs []float64          `yaml:"category_probs"`
+	}
+	if err := unmarshal(&raw); err != nil {
+		return err
+	}
+	*d = Distribution{
+		Kind:          raw.Kind,
+		Params:        raw.Params,
+		Values:        raw.Values,
+		Probs:         raw.Probs,
+		Categories:    raw.Categories,
+		CategoryProbs: raw.CategoryProbs,
+	}
+	if len(raw.Categories) > 0 && len(raw.CategoryProbs) == 0 && len(raw.Probs) > 0 {
+		d.CategoryProbs = raw.Probs
+		d.Probs = nil
+	}
+	return nil
 }
 
 // Point 构造确定值分布。
 func Point(v float64) Distribution {
 	return Distribution{Kind: DistPoint, Params: map[string]float64{"value": v}}
+}
+
+// Validate 校验分布的结构一致性：kind 必填且已知（封闭集检查在 enums.go），
+// 各 kind 的必备 params 齐全、取值合法（sigma>=0、low<=high），离散分布的
+// 值/类别与概率长度一致、概率非负且和为 1（±1e-6 容差，浮点手写友好）。
+func (d *Distribution) Validate() error {
+	has := func(k string) bool { _, ok := d.Params[k]; return ok }
+	switch d.Kind {
+	case DistPoint:
+		if !has("value") {
+			return fmt.Errorf("qdl: point 分布缺 params.value")
+		}
+	case DistNormal, DistLognormal:
+		if !has("mu") || !has("sigma") {
+			return fmt.Errorf("qdl: %s 分布缺 params.mu/sigma", d.Kind)
+		}
+		if d.Params["sigma"] < 0 {
+			return fmt.Errorf("qdl: %s 分布 sigma=%v 为负", d.Kind, d.Params["sigma"])
+		}
+	case DistUniform:
+		if !has("low") || !has("high") {
+			return fmt.Errorf("qdl: uniform 分布缺 params.low/high")
+		}
+		if d.Params["low"] > d.Params["high"] {
+			return fmt.Errorf("qdl: uniform 分布 low=%v > high=%v", d.Params["low"], d.Params["high"])
+		}
+	case DistDiscrete:
+		numeric, categorical := len(d.Values) > 0, len(d.Categories) > 0
+		if numeric == categorical { // 两者都要有且仅有一个形态
+			return fmt.Errorf("qdl: discrete 分布必须且只能提供 values（数值型）或 categories（类别型）之一")
+		}
+		n := len(d.Values)
+		if n == 0 {
+			n = len(d.Categories)
+		}
+		if len(d.Probs) == 0 && len(d.CategoryProbs) == 0 {
+			return fmt.Errorf("qdl: discrete 分布缺 probs/category_probs")
+		}
+		ps := d.Probs
+		if len(ps) == 0 {
+			ps = d.CategoryProbs
+		}
+		if len(ps) != n {
+			return fmt.Errorf("qdl: discrete 分布值数 %d 与概率数 %d 不一致", n, len(ps))
+		}
+		sum := 0.0
+		for _, p := range ps {
+			if p < 0 {
+				return fmt.Errorf("qdl: discrete 分布含负概率 %v", p)
+			}
+			sum += p
+		}
+		if sum < 1-1e-6 || sum > 1+1e-6 {
+			return fmt.Errorf("qdl: discrete 分布概率和 %v ≠ 1", sum)
+		}
+	default:
+		return fmt.Errorf("qdl: 分布 kind 为空或未知 %q", d.Kind)
+	}
+	return nil
 }
 
 // DriftState 是参数漂移检测器的运行状态（CUSUM/Page-Hinkley，见 estimate/drift）。
@@ -70,7 +159,7 @@ type Parameter struct {
 	Bounds     [2]*float64   `yaml:"bounds"` // [lower, upper]；nil = 该侧无界
 	// SnapCandidates：厂商内部系数几乎总是整齐值（1、5、0.1、0.25）。
 	// 估计落入候选的 90% 区间内则吸附并 frozen（级联收窄其余参数）。
-	SnapCandidates []float64   `yaml:"snap_candidates"`
+	SnapCandidates []float64   `yaml:"snap_candidates,omitempty"`
 	Frozen         bool        `yaml:"frozen"` // gauge 锚定参数不再更新
 	Drift          *DriftState `yaml:"drift"`
 }
