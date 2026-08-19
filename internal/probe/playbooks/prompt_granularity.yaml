@@ -17,6 +17,7 @@ discriminators:
   - id: turn_step_counting
     description: 发 1 个含 5 次工具调用的 turn：配额掉 1 → turn；掉 5 → request
     kind: step_counting
+    mapping: {turn: turn, request: request, step: step}
 notes: >
   一次实验，1 分钟。判定结果直接决定该 plan 的价值评估（容量 × 单次
   请求等价美元的乘数差 10~50×）——Intent §2.3 GLM 计划的结构套利核心。

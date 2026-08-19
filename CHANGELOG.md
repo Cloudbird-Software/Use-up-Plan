@@ -87,6 +87,16 @@
   `DryRun` 回放执行器（glob 匹配桶 + semantic 匹配观测 → 证据序列提取
   + 样本数/时间跨度充分性评估）。dry-run 只读事件库，不发真实请求
   （ROADMAP C2：真实执行器后置于观测三通道就绪）。
+- internal/probe（C3）：五类确定性判别式（Intent §4.3「不需要统计的判别式
+  优先用」）——`resets_at_constancy`（跳变×断崖重合 → 锚定窗；跳变后
+  用量仍高 → sliding，附周窗锚点模态反推）、`cliff_vs_stair`（回补动作
+  幅度双峰分离：整窗断崖 vs 渐进阶梯，阈值全相对值域）、`step_counting`
+  （单 turn 配额增量匹配 turn/request/step）、`null_presence`（消耗后
+  字段出现性，需实验协议的消耗确认）、`pool_sync`（专桶孤立上涨证伪
+  共池）。判别式输出归一化 finding + 置信度，经剧本 `mapping`（新增
+  必填字段，键值域封闭集校验）翻译成结构候选；`Conclude` 按质量守恒
+  聚合成剧本级后验（不可判定质量入 sink）。ROADMAP C3 验收达成：合成
+  数据上五类结构问题判定后验 > 0.9。
 - internal/collect `LoadClaudeLogs`/`DefaultClaudeProjectsDir`：递归收集
   `~/.claude/projects/**/*.jsonl` 会话日志并按时间升序合并。
 
