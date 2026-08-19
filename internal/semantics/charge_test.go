@@ -106,6 +106,30 @@ func TestChargeFloorMaxAndMultiplier(t *testing.T) {
 	}
 }
 
+// TestGlobBestDeterministicTie 等长 pattern 平手曾按 map 迭代序随机取胜——
+// 修复后取字典序最小者，且跨调用稳定（估计器逐位可复现的前提）。
+func TestGlobBestDeterministicTie(t *testing.T) {
+	table := map[string]float64{
+		"m-a-*":   3, // 与 m-*-x 等长（5），匹配 m-a-x 时平手
+		"m-*-x":   2, // 字典序更小
+		"m-a-b-*": 5, // 更长，出现时无条件取胜
+	}
+	for i := 0; i < 200; i++ {
+		if got := globBest(table, "m-a-x"); got != 2 {
+			t.Fatalf("等长平手应取字典序最小 pattern 的倍率 2，得 %v（第 %d 次）", got, i)
+		}
+	}
+	if got := globBest(table, "m-a-b-x"); got != 5 {
+		t.Fatalf("最长 pattern 应取胜，得 %v", got)
+	}
+	if got := globBest(table, "m-a-y"); got != 3 {
+		t.Fatalf("唯一匹配 m-a-* 应得 3，得 %v", got)
+	}
+	if got := globBest(table, "zzz"); got != 1 {
+		t.Fatalf("无匹配应得默认 1，得 %v", got)
+	}
+}
+
 func TestChargeParamRefAndScope(t *testing.T) {
 	spec := mkPlan(t)
 	b := &spec.Buckets[0]

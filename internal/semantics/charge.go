@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"path"
+	"sort"
 	"strings"
 
 	"github.com/Cloudbird-Software/Use-up-Plan/internal/qdl"
@@ -192,11 +193,22 @@ func quantizeUB(q qdl.Quantize, x float64) float64 {
 }
 
 // globBest 在 pattern→倍率表里找匹配 key 的最长 pattern 的倍率；无匹配为 1。
+// 等长平手取字典序最小 pattern。
+// 排序遍历是确定性的硬要求——map 迭代序随机会让等长平手随进程随机，
+// 破坏估计器的逐位可复现性（审计与 warm-start 的前提）。
 func globBest(table map[string]float64, key string) float64 {
+	pats := make([]string, 0, len(table))
+	for pat := range table {
+		pats = append(pats, pat)
+	}
+	sort.Strings(pats)
 	best, bestPat := 1.0, ""
-	for pat, v := range table {
-		if ok, err := path.Match(pat, key); err == nil && ok && len(pat) > len(bestPat) {
-			best, bestPat = v, pat
+	for _, pat := range pats {
+		if len(pat) <= len(bestPat) {
+			continue // 已有更长匹配；等长平手保留字典序最小者
+		}
+		if ok, err := path.Match(pat, key); err == nil && ok {
+			best, bestPat = table[pat], pat
 		}
 	}
 	return best

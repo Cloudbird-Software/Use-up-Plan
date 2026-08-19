@@ -61,6 +61,15 @@
   Claude Sonnet/Opus 周限专用窗；`ChargeOne` 倍率改为乘在 `(flat+Σ)` 整体，
   per-request 桶（flat=1、terms 空）的模型倍率由此生效。
 
+### Fixed
+
+- 估计器逐位确定性：`logPosterior` 先验项改按参数 ID 排序求和（map 迭代序
+  随机 + 浮点加法不可结合 → ULP 级差异 → 优化器在量化似然窄谷走不同
+  线搜索路径，CI 上 TestEstimateWarmStart 间歇性失败即此症状）；
+  `globBest` 等长 pattern 平手改取字典序最小（原随 map 迭代序随机）。
+  修复前先写复现测试（TestLogPosteriorDeterministic：200 键宽量级
+  先验和，同进程 500 次调用必须逐位一致）。
+
 ### Changed
 
 - 按 languages.yaml 应用层默认政策选定语言为 Go：移除 TypeScript 脚手架，落地 Go 工具链
