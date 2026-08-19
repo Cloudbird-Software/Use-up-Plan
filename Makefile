@@ -1,8 +1,15 @@
 .PHONY: setup fmt lint arch test build check
-setup:  ; npm ci
-fmt:    ; npx prettier --write .
-lint:   ; npx prettier --check . && npx eslint . && npx tsc --noEmit
-arch:   ; npx depcruise src
-test:   ; npx vitest run --coverage
-build:  ; npm run build
-check:  lint arch test
+setup:
+	go mod download
+fmt:
+	gofmt -l -w .
+lint:
+	@out=$$(gofmt -l .); if [ -n "$$out" ]; then echo "gofmt 未通过（先 make fmt）:"; echo "$$out"; exit 1; fi
+	go vet ./...
+arch:
+	go run ./tools/archlint
+test:
+	go test -race ./...
+build:
+	go build ./...
+check: lint arch test
