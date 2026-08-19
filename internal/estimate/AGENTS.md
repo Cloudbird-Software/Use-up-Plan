@@ -11,6 +11,10 @@
 - `problem.go`：`ParamSpace`（物理 θ ↔ 无界 z 的变换：logit/exp/恒等）+
   `Problem`（负对数后验 + 数值梯度）
 - `online.go`：`Estimate`——L-BFGS + MoreThuente 强 Wolfe 的在线点估计
+- `offline.go`：`SamplePosterior`——自适应随机游走 Metropolis-Hastings 的
+  离线全量后验（z 空间采样，预热期学样本协方差 + Robbins-Monro 步长，
+  采样期 proposal 冻结保证正确平稳分布）；`ParamUpdates` 产出 reason=offline
+  的 ParamUpdateEvent——与在线估计写同一事件流（Intent §4.6）
 
 ## 不变量（违反 = bug）
 
