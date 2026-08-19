@@ -57,6 +57,13 @@ func NewParamSpace(spec *qdl.PlanSpec, extraFrozen map[string]float64) (*ParamSp
 	}
 	for i := range spec.Parameters {
 		p := &spec.Parameters[i]
+		// 类别型结构参数（discrete + categories，如 prompt_granularity）
+		// 不是数值量：无 float64 表示、不进 θ、PriorLogProb 对其恒 -Inf。
+		// 它们的辨识走结构选择（select.go 的 BIC 面 / probe 的确定性判别式），
+		// 进数值自由空间只会让整个估计爆掉。
+		if p.Prior.Kind == qdl.DistDiscrete && len(p.Prior.Categories) > 0 {
+			continue
+		}
 		if p.Frozen || containsKey(extraFrozen, p.ID) {
 			ps.BaseIDs = append(ps.BaseIDs, p.ID)
 			continue

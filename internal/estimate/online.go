@@ -29,14 +29,15 @@ func (o EstimateOptions) withDefaults() EstimateOptions {
 // 可直接喂给 semantics.Charge / ledger 重放；LogPosterior 供模型选择
 // （B3 后续 BIC/边际似然）与收敛监控。
 type Result struct {
-	Theta        qdl.ParamPoint // 完整参数快照（自由 + frozen + base 常量）
-	LogPosterior float64        // 收敛点的对数后验（含先验与似然）
-	FreeIDs      []string       // 自由参数 ID（与估计顺序一致）
-	Iterations   int            // 主迭代数
-	FuncEvals    int            // 目标函数求值数
-	Converged    bool           // 优化器报告收敛（否则是迭代上限截断）
-	Status       string         // 优化器终止状态的人类可读描述
-	NObs         int            // 参与拟合的观测点数
+	Theta         qdl.ParamPoint // 完整参数快照（自由 + frozen + base 常量）
+	LogPosterior  float64        // 收敛点的对数后验（含先验与似然）
+	LogLikelihood float64        // 收敛点的纯似然项（不含先验；BIC 打分原料）
+	FreeIDs       []string       // 自由参数 ID（与估计顺序一致）
+	Iterations    int            // 主迭代数
+	FuncEvals     int            // 目标函数求值数
+	Converged     bool           // 优化器报告收敛（否则是迭代上限截断）
+	Status        string         // 优化器终止状态的人类可读描述
+	NObs          int            // 参与拟合的观测点数
 }
 
 // Estimate 跑一次在线点估计（Intent §4.6：L-BFGS 风格低延迟增量更新，
@@ -66,11 +67,12 @@ func Estimate(ds *Dataset, base qdl.ParamPoint, theta0 qdl.ParamPoint, opts Esti
 		for k, v := range base {
 			theta[k] = v
 		}
-		lp, err := evalLogPosterior(ds, theta, prob.Space.Priors)
+		lp, ll, err := evalBoth(ds, theta, prob.Space.Priors)
 		if err != nil {
 			return nil, err
 		}
-		res.Theta, res.LogPosterior, res.Converged, res.Status = theta, lp, true, "无自由参数"
+		res.Theta, res.LogPosterior, res.LogLikelihood = theta, lp, ll
+		res.Converged, res.Status = true, "无自由参数"
 		return res, nil
 	}
 
@@ -118,14 +120,32 @@ func Estimate(ds *Dataset, base qdl.ParamPoint, theta0 qdl.ParamPoint, opts Esti
 	res.FuncEvals = out.Stats.FuncEvaluations
 	res.Converged = out.Status > 0
 	res.Status = out.Status.String()
+	// 纯似然项单独算一次（BIC 打分原料；多一次重放的代价只发生在收敛点）。
+	mus, err := ds.Predict(res.Theta)
+	if err != nil {
+		return nil, fmt.Errorf("estimate: 收敛点预测: %w", err)
+	}
+	ll, err := logLikelihood(mus, ds.Obs)
+	if err != nil {
+		return nil, fmt.Errorf("estimate: 收敛点似然: %w", err)
+	}
+	res.LogLikelihood = ll
 	return res, nil
 }
 
-// evalLogPosterior 在给定完整 θ 下算一次对数后验（不做优化）。
-func evalLogPosterior(ds *Dataset, theta qdl.ParamPoint, priors map[string]*qdl.Distribution) (float64, error) {
+// evalBoth 在给定完整 θ 下算一次对数后验与纯似然（不做优化）。
+func evalBoth(ds *Dataset, theta qdl.ParamPoint, priors map[string]*qdl.Distribution) (lp, ll float64, err error) {
 	mus, err := ds.Predict(theta)
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
-	return logPosterior(mus, ds.Obs, theta, priors)
+	ll, err = logLikelihood(mus, ds.Obs)
+	if err != nil {
+		return 0, 0, err
+	}
+	lp, err = logPosterior(mus, ds.Obs, theta, priors)
+	if err != nil {
+		return 0, 0, err
+	}
+	return lp, ll, nil
 }
