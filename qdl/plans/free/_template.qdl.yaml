@@ -1,0 +1,102 @@
+# 免费档 / 活动档模板 —— 种子 plan #3（Intent §2.4 原型的落地版）
+#
+# ★ 多维硬桶（RPM/RPD/TPM 同时约束）+ 高中断率：mid_stream 中断 + 不可续写 ⇒
+# 只有幂等、可丢弃、可重跑的任务类能路由到这里（LP 的硬约束，不是启发式）。
+# 新厂商免费档从本模板拷贝后改参数 ID 前缀与观测绑定即可。
+#
+# 模板约定：generic. 前缀参数是占位先验——落地到具体厂商时全局替换前缀并
+# 按 vendor_doc 声称值收紧先验（声称值只配当先验，永不 frozen）。
+id: generic/free-tier-template@2026-08
+vendor: generic
+plan_name: Free Tier Template
+price_usd_per_period: 0.0
+period: month
+spec_version: qdl/1.0
+effective_from: 2026-08-01T00:00:00Z
+
+gauge:
+  mode: anchor_to_observed_absolute
+  note: 免费档无价目表可锚定；价值 = 有效容量 × 参考模型单价（value 模块事后评估）。
+
+parameters:
+  - id: generic.free.rpm
+    unit: requests_per_minute
+    prior: {kind: discrete, values: [3, 5, 10, 15, 30, 60], probs: [0.1, 0.2, 0.3, 0.2, 0.1, 0.1]}
+    provenance: vendor_doc
+  - id: generic.free.rpm_refill
+    unit: requests_per_second
+    # 与 rpm 的关系固定：refill = rpm / 60（QDL 刻意无表达式语言，故独立参数、
+    # estimate 模块按此关系联合辨识）
+    prior: {kind: lognormal, params: {mu: -2.0, sigma: 1.0}}
+    provenance: assumed
+  - id: generic.free.rpd
+    unit: requests_per_day
+    prior: {kind: discrete, values: [50, 100, 200, 500, 1000, 1500], probs: [0.15, 0.25, 0.25, 0.2, 0.1, 0.05]}
+    provenance: vendor_doc
+  - id: generic.free.tpm
+    unit: tokens_per_minute
+    prior: {kind: lognormal, params: {mu: 11.5, sigma: 1.0}}   # 中位 ≈ 98k
+    provenance: vendor_doc
+  - id: generic.free.tpm_refill
+    unit: tokens_per_second
+    prior: {kind: lognormal, params: {mu: 7.0, sigma: 1.0}}    # = tpm / 60
+    provenance: assumed
+
+buckets:
+  - id: b_rpm
+    unit: requests
+    capacity: generic.free.rpm
+    window:
+      # ★ 是离散分钟窗还是 token bucket？决定能否 burst → 直接影响并发策略
+      kind_candidates: [token_bucket_continuous, tumbling_calendar]
+      kind_posterior: {token_bucket_continuous: 0.7, tumbling_calendar: 0.3}
+      length: PT1M
+      refill_rate: generic.free.rpm_refill
+      burst: generic.free.rpm
+    scope: {level: credential}
+    charge: {flat: 1.0, linearization: exact_linear}
+    observability:
+      - {source: response_header, locator: x-ratelimit-remaining-requests,
+         semantic: remaining_abs, quantization: {kind: exact}}
+      - {source: response_header, locator: x-ratelimit-reset-requests,
+         semantic: reset_after_s}
+    overflow: [{action: hard_block}]
+
+  - id: b_rpd
+    unit: requests
+    capacity: generic.free.rpd
+    window:
+      kind_candidates: [tumbling_calendar]
+      calendar_align: utc_midnight
+      length: P1D
+      reset: zero
+    scope: {level: credential}
+    charge: {flat: 1.0, linearization: exact_linear}
+    overflow: [{action: hard_block}]
+
+  - id: b_tpm
+    unit: input_tokens
+    capacity: generic.free.tpm
+    window:
+      kind_candidates: [token_bucket_continuous]
+      length: PT1M
+      refill_rate: generic.free.tpm_refill
+    scope: {level: credential}
+    charge:
+      terms: [{dim: input_tokens, coeff: 1.0}, {dim: output_tokens, coeff: 1.0}]
+      linearization: exact_linear
+    overflow: [{action: hard_block}]
+
+channels:
+  - id: free_openai_compat
+    protocol: openai_chat
+    auth: api_key
+    reliability:
+      interruption_hazard_per_hour: 0.45        # ★ 极高
+      interruption_granularity: mid_stream      # ★ 会在流中断
+      resume_supported: false
+    admission: {limits: {concurrency: 1}}
+
+risk:
+  tos_violation_class: none
+  ban_hazard_monthly: 0.01
