@@ -33,8 +33,8 @@ const (
 // Quantization 是观测值的量化精度（量化似然的步长 s：整数百分比 s=1.0，
 // Codex 一位小数 s=0.1——后者的单位观测信息量高 10 倍，决定了先做 Codex）。
 type Quantization struct {
-	Kind     string `yaml:"kind"` // exact | integer | decimals | unknown
-	Decimals *int   `yaml:"decimals"`
+	Kind     string `yaml:"kind" json:"kind"` // exact | integer | decimals | unknown
+	Decimals *int   `yaml:"decimals" json:"decimals,omitempty"`
 }
 
 // ObsBinding 声明「一个桶的某观测量从哪里读、语义是什么、精度多少」。

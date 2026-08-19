@@ -31,6 +31,14 @@
   结构套利形态）、免费档模板（RPM/RPD/TPM 多维硬桶 + 高中断率通道）；
   golden 加载契约（`TestSeedPlansLoad`/`RoundTrip`）与语义层行为测试
   （桶命中 / per-request 扣减 / 三态准入）。
+- internal/ledger（B1）：Intent §3.3 事件溯源落地——六种事件类型
+  （charge / observation / wall_hit / reset_observed / param_update /
+  structure_update）+ JSONL 信封；`Store` 深接口与 `JSONLStore` 文件实现
+  （AR-7：JSONL 起步，SQL 后置 Phase 3+）：追加写 + fsync、重开恢复续号、
+  崩溃半写残行截断、中间坏行报错；存储边界统一负载校验与凭证脱敏
+  （`Sanitize`：api key / bearer / JWT / AWS / GitHub PAT / key=value）。
+  ChargeEvent.Dims 只存原始物理量、WallHitEvent.LedgerSnapshot 强制非空
+  （Σwx=C 方程）由校验强制。
 - qdl/semantics 新增 `model_family` 作用域层级与模型族前缀匹配——支撑
   Claude Sonnet/Opus 周限专用窗；`ChargeOne` 倍率改为乘在 `(flat+Σ)` 整体，
   per-request 桶（flat=1、terms 空）的模型倍率由此生效。

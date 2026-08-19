@@ -38,12 +38,12 @@ const (
 //	{kind: discrete,  values: [1200, 1600], probs: [0.5, 0.5]}          // 数值型
 //	{kind: discrete,  categories: [turn, request], probs: [0.5, 0.5]}  // 类别型（结构未知数）
 type Distribution struct {
-	Kind          DistributionKind   `yaml:"kind"`
-	Params        map[string]float64 `yaml:"params,omitempty"` // point: value / normal|lognormal: mu,sigma / uniform: low,high
-	Values        []float64          `yaml:"values,omitempty"` // 数值型离散分布
-	Probs         []float64          `yaml:"probs,omitempty"`
-	Categories    []string           `yaml:"categories,omitempty"` // 类别型离散分布（结构辨识用，如 prompt 粒度 turn/request/step）
-	CategoryProbs []float64          `yaml:"category_probs,omitempty"`
+	Kind          DistributionKind   `yaml:"kind" json:"kind"`
+	Params        map[string]float64 `yaml:"params,omitempty" json:"params,omitempty"` // point: value / normal|lognormal: mu,sigma / uniform: low,high
+	Values        []float64          `yaml:"values,omitempty" json:"values,omitempty"` // 数值型离散分布
+	Probs         []float64          `yaml:"probs,omitempty" json:"probs,omitempty"`
+	Categories    []string           `yaml:"categories,omitempty" json:"categories,omitempty"` // 类别型离散分布（结构辨识用，如 prompt 粒度 turn/request/step）
+	CategoryProbs []float64          `yaml:"category_probs,omitempty" json:"category_probs,omitempty"`
 }
 
 // UnmarshalYAML 归一类别型离散分布的书写形态（Intent §2.1 契约：类别型用
