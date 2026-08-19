@@ -7,6 +7,7 @@
 ### Added
 
 - 初始模板工程（CI gate / hygiene / dependabot / automerge 全套护栏）。
+- docs/ROADMAP.md：Phase 0–6 开发规划（PR 序列 / 验收标准 / 选型待决 / 风险登记 / Owner 落地手册）。
 
 ### Changed
 
