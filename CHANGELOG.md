@@ -46,6 +46,13 @@
   残差归因（Intent §3.4 归因表工程化）：量化噪声 / 外生消耗 / 系数漂移
   （CUSUM 变点）/ 未建模 flat / 结构错判（观测重置但账本有存量）/ 负偏 /
   数据不足 / 未解释，八类封闭分类 + 逐桶证据字符串。
+- internal/estimate（B3）：Intent §4 参数辨识落地——量化似然
+  `P(y|μ)=Φ((y+s/2-μ)/σ)-Φ((y-s/2-μ)/σ)`（尾区渐近展开保数值稳定）、
+  精确计数似然、撞墙似然（`1[Σwx≥C]·(1-ε)+ε`）、五类先验密度；
+  `ExtractDataset` 观测提取 + `Predict(θ)`（Recompute + LinearEV 重放，
+  「用新 θ 重放旧请求流」的辨识循环本体）；`Estimate` 在线点估计
+  （L-BFGS + MoreThuente 强 Wolfe + FunctionConverge 早停，线搜索卡窄谷
+  降级返回至今最优点）。新依赖 gonum.org/v1/gonum（BSD-3-Clause）。
 - qdl/semantics 新增 `model_family` 作用域层级与模型族前缀匹配——支撑
   Claude Sonnet/Opus 周限专用窗；`ChargeOne` 倍率改为乘在 `(flat+Σ)` 整体，
   per-request 桶（flat=1、terms 空）的模型倍率由此生效。
