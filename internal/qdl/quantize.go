@@ -16,8 +16,8 @@ const (
 
 // Quantize 是量化规则（维度级或桶级）。
 type Quantize struct {
-	Mode QuantizeMode
-	Step float64
+	Mode QuantizeMode `yaml:"mode"`
+	Step float64      `yaml:"step"`
 }
 
 // Apply 对 x 应用量化。Mode 为 none 或 Step<=0 时原样返回；
@@ -36,4 +36,25 @@ func (q Quantize) Apply(x float64) float64 {
 		n = math.Round(n)
 	}
 	return n * q.Step
+}
+
+// UnmarshalYAML 应用 Pydantic 等价缺省（Intent §2.1 Quantize()）：mode 缺省 none、
+// step 缺省 1。
+func (q *Quantize) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var raw struct {
+		Mode QuantizeMode `yaml:"mode"`
+		Step *float64     `yaml:"step"`
+	}
+	if err := unmarshal(&raw); err != nil {
+		return err
+	}
+	q.Mode = raw.Mode
+	if q.Mode == "" {
+		q.Mode = QuantizeNone
+	}
+	q.Step = 1
+	if raw.Step != nil {
+		q.Step = *raw.Step
+	}
+	return nil
 }

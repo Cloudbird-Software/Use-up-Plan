@@ -1,0 +1,127 @@
+# golden fixture：A3 loader 的黄金样本（Intent §2.2 的浓缩版）。
+# 刻意覆盖：$ref 复用 charge、Coeff 双态、ISO 8601 时长、kind_posterior、
+# 大写 overflow 规范化、gauge 价目锚定、admission 瞬时约束、grants、risk。
+id: t/golden@2026-08
+vendor: t
+plan_name: Golden Plan
+price_usd_per_period: 100.0
+period: month
+spec_version: qdl/1.0
+effective_from: 2026-08-01T00:00:00Z
+
+gauge:
+  mode: anchor_to_vendor_ratecard
+  note: 规范化令 opaque_units 与官方 API 美元等价
+  ratecard_usd_per_unit:
+    input_tokens: 3.0e-6
+    cache_read_tokens: 0.3e-6
+    output_tokens: 15.0e-6
+
+parameters:
+  - id: t.golden.C_5h
+    unit: usd_equivalent
+    prior: {kind: lognormal, params: {mu: 2.7, sigma: 1.0}}
+    provenance: assumed
+    bounds: [0.1, 500]
+  - id: t.golden.cache_ratio
+    unit: dimensionless
+    prior: {kind: uniform, params: {low: 0.05, high: 1.0}}
+    snap_candidates: [0.1, 0.25, 0.5, 1.0]
+  - id: t.golden.mult_opus
+    unit: dimensionless
+    prior: {kind: point, params: {value: 1.0}}
+    frozen: true
+    provenance: gauge
+  - id: t.golden.granularity
+    unit: categorical
+    prior: {kind: discrete, categories: [turn, request], probs: [0.5, 0.5]}
+  - id: t.golden.exo_rate
+    unit: usd_equivalent_per_hour
+    prior: {kind: normal, params: {mu: -2.0, sigma: 1.5}}
+
+buckets:
+  - id: b_5h
+    unit: opaque_units
+    capacity: t.golden.C_5h
+    exogenous_drain: true
+    exogenous_rate_param: t.golden.exo_rate
+    window:
+      kind_candidates: [tumbling_anchored_on_first_use, sliding_exact]
+      kind_posterior: {tumbling_anchored_on_first_use: 0.6, sliding_exact: 0.4}
+      length: PT5H
+      reset: zero
+    scope:
+      level: cross_product_pool
+      pool_id: golden_pool
+      shared_with_products: ["web", "desktop"]
+    charge:
+      terms:
+        - {dim: input_tokens,      coeff: 3.0e-6}
+        - {dim: cache_read_tokens, coeff: t.golden.cache_ratio}
+        - {dim: output_tokens,     coeff: 15.0e-6, quantize: {mode: ceil, step: 1000}}
+      model_multiplier:
+        claude-opus-*: t.golden.mult_opus
+        claude-haiku-*: 0.25
+      linearization: expected_value
+    observability:
+      - source: usage_endpoint
+        url: https://api.example.com/usage
+        auth: oauth_bearer
+        locator: "$.five_hour.utilization"
+        semantic: used_pct
+        quantization: {kind: integer}
+        poll_interval_s: 180
+        trust: 0.95
+      - source: response_header
+        locator: x-ratelimit-remaining
+        semantic: remaining_abs
+    overflow:
+      - action: SPILL_TO_BUCKET
+        target: b_extra
+      - action: HARD_BLOCK_WITH_RESET_HINT
+
+  - id: b_7d
+    unit: opaque_units
+    capacity: t.golden.C_5h
+    window:
+      kind_candidates: [tumbling_account_anchored]
+      length: P7D
+      anchor_utc: "UNKNOWN"
+    scope: {level: subscription}
+    charge: {"$ref": "#/buckets/b_5h/charge"}
+
+  - id: b_extra
+    unit: credits
+    capacity: 50.0
+    window:
+      kind_candidates: [billing_cycle]
+      reset: refill_to_full
+    scope: {level: subscription}
+    charge: {terms: [{dim: currency_usd, coeff: 1.0}]}
+    overflow:
+      - {action: SPILL_TO_PAYG, requires_explicit_enable: true}
+      - {action: HARD_BLOCK}
+
+channels:
+  - id: chan_oauth
+    protocol: anthropic_messages
+    auth: oauth_bearer
+    reliability: {interruption_hazard_per_hour: 0.01, resume_supported: true}
+    admission:
+      limits: {concurrency: 5, context_tokens_peak: 200000}
+    models:
+      - {logical_model: T1_REASONER, vendor_model_id: model-opus, family: opus, tokenizer: t, context_window: 200000}
+      - {logical_model: T2_WORKHORSE, vendor_model_id: model-sonnet, family: sonnet, aliases: [sonnet]}
+
+grants:
+  - id: g_base
+    kind: base
+    bucket_id: b_5h
+    amount: t.golden.C_5h
+    granted_at: 2026-08-01T00:00:00Z
+
+risk:
+  tos_violation_class: GREY
+  ban_hazard_monthly: 0.02
+  ban_blast_radius: [acct_1]
+  prepaid_at_risk_usd: 100.0

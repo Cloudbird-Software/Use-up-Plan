@@ -10,6 +10,7 @@ import (
 func validPlan() *PlanSpec {
 	return &PlanSpec{
 		ID: "t/plan@2026-08", Vendor: "t", PlanName: "Plan",
+		Period:        "month",
 		EffectiveFrom: time.Now(),
 		Parameters: []Parameter{
 			{ID: "t.C", Unit: "usd_equivalent", Prior: Point(100), Provenance: ProvenanceAssumed},
@@ -18,7 +19,7 @@ func validPlan() *PlanSpec {
 		Buckets: []Bucket{{
 			ID: "b1", Unit: DimOpaqueUnits,
 			Capacity: Ref("t.C"),
-			Window:   Window{KindCandidates: []WindowKind{WindowTumblingCalendar}, Length: 24 * time.Hour, Reset: ResetZero},
+			Window:   Window{KindCandidates: []WindowKind{WindowTumblingCalendar}, Length: Duration{24 * time.Hour}, Reset: ResetZero},
 			Scope:    Scope{Level: ScopeAccount},
 			Charge:   ChargeRule{Terms: []Term{{Dim: DimInputTokens, Coeff: Ref("t.w_in")}}},
 		}},
