@@ -29,6 +29,7 @@ var internalModuleRules = map[string]bool{
 	"semantics": true, // Phase 0：advance/charge/admit 纯函数内核
 	"ledger":    true, // Phase 1：append-only 事件存储 + 状态重建 + 残差归因
 	"estimate":  true, // Phase 1–2：量化似然 / 点估计 / 后验 / 吸附 / 结构选择 / 漂移
+	"audit":     true, // Phase 1：端到端审计管线编排（B6）——入账/估计/报告
 	"probe":     true, // Phase 2：结构探针剧本库 + 执行器
 	"collect":   true, // Phase 3：响应头 / usage endpoint / 本地日志 / 网页采集
 	"cred":      true, // Phase 3：凭证加密存储 + refresh + 健康度

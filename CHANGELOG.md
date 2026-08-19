@@ -67,6 +67,14 @@
 - qdl/semantics 新增 `model_family` 作用域层级与模型族前缀匹配——支撑
   Claude Sonnet/Opus 周限专用窗；`ChargeOne` 倍率改为乘在 `(flat+Σ)` 整体，
   per-request 桶（flat=1、terms 空）的模型倍率由此生效。
+- internal/audit + cmd `use-up-plan audit`（B6）：端到端审计管线——
+  `IngestClaude`（collect.ClaudeTurn → ChargeEvent，EXACT 记账口径，
+  时间升序强制）、`Run`（在线 MLE → 离线后验 → gauge 读数 → 对账归因）、
+  `Report.Render` 人类可读报告（参数 90% 可信区间 / 等价 API 美元读数 /
+  残差归因表 / 链健康度）。CLI：`-plan`/`-ledger` 必填，`-claude-dir`
+  可选导入历史会话日志，`-skip-posterior`/`-seed`/`-out` 控制后验与输出。
+- internal/collect `LoadClaudeLogs`/`DefaultClaudeProjectsDir`：递归收集
+  `~/.claude/projects/**/*.jsonl` 会话日志并按时间升序合并。
 
 ### Fixed
 
