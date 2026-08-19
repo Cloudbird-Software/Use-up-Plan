@@ -15,6 +15,11 @@
   离线全量后验（z 空间采样，预热期学样本协方差 + Robbins-Monro 步长，
   采样期 proposal 冻结保证正确平稳分布）；`ParamUpdates` 产出 reason=offline
   的 ParamUpdateEvent——与在线估计写同一事件流（Intent §4.6）
+- `select.go`：`SelectStructure`——窗口 kind 的 BIC 结构模型选择
+  （Intent §4.3：枚举候选 → 同数据集拟合 → logL_hat - ½k·ln n 打分 →
+  softmax 后验）；`StructEvents` 产出 StructureUpdateEvent。类别型参数
+  （discrete + categories）不进数值自由空间——它们是结构未知量，走
+  选择/判别式路径，PriorLogProb 对其恒 -Inf
 
 ## 不变量（违反 = bug）
 
@@ -26,6 +31,11 @@
 4. 估计用重放口径恒为 LinearEV（ceil 量化不可导）；记账核对才用 Exact。
 5. 线搜索卡死（ErrLinesearcherFailure / ErrNoProgress）降级返回至今最优点
    而非报错——窄谷是量化似然的固有形状，warm-start 下轮继续 refine。
+6. 结构选择打分只用纯似然（`Result.LogLikelihood`，不含先验）：结构候选
+   共享同一参数先验，计入会重复；候选按 KindCandidates 声明序遍历 +
+   softmax 用 log-sum-exp——逐位可复现。
+7. `cloneSpecWithKind` 必须复制桶切片再改 KindPosterior——Window 是桶
+   结构体的值字段，原地改会静默污染调用方的 spec。
 
 ## 已知数值特性（不是 bug）
 

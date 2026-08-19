@@ -168,12 +168,10 @@ func PriorLogProb(d *qdl.Distribution, x float64) float64 {
 	}
 }
 
-// logPosterior 组装负对数后验（在线点估计的目标函数）：
-//
-//	NLL(θ) = -Σ_j logP(y_j | μ_j(θ)) - Σ_i logPrior(θ_i)
-//
-// 常数项（与 θ 无关的归一化）省略。
-func logPosterior(mus []float64, obs []ObsPoint, theta qdl.ParamPoint, priors map[string]*qdl.Distribution) (float64, error) {
+// logLikelihood 是纯观测项的对数似然（不含先验）——BIC 结构选择
+// （select.go）的打分原料：不同结构候选共享同一参数先验，比较只能用
+// 似然项，否则先验会被计入两次。
+func logLikelihood(mus []float64, obs []ObsPoint) (float64, error) {
 	if len(mus) != len(obs) {
 		return 0, fmt.Errorf("estimate: 预测数 %d 与观测数 %d 不一致", len(mus), len(obs))
 	}
@@ -196,6 +194,19 @@ func logPosterior(mus []float64, obs []ObsPoint, theta qdl.ParamPoint, priors ma
 		}
 		total += lp
 	}
+	return total, nil
+}
+
+// logPosterior 组装负对数后验（在线点估计的目标函数）：
+//
+//	NLL(θ) = -Σ_j logP(y_j | μ_j(θ)) - Σ_i logPrior(θ_i)
+//
+// 常数项（与 θ 无关的归一化）省略。
+func logPosterior(mus []float64, obs []ObsPoint, theta qdl.ParamPoint, priors map[string]*qdl.Distribution) (float64, error) {
+	ll, err := logLikelihood(mus, obs)
+	if err != nil {
+		return 0, err
+	}
 	// 先验项按参数 ID 排序求和：map 迭代序随机 + 浮点加法不可结合会产出
 	// ULP 级差异，量化似然窄谷里的优化器随之走不同线搜索路径（估计器必须
 	// 逐位可复现——审计与 warm-start 测试的硬要求）。
@@ -207,7 +218,7 @@ func logPosterior(mus []float64, obs []ObsPoint, theta qdl.ParamPoint, priors ma
 	}
 	sort.Strings(ids)
 	for _, id := range ids {
-		total += PriorLogProb(priors[id], theta[id])
+		ll += PriorLogProb(priors[id], theta[id])
 	}
-	return total, nil
+	return ll, nil
 }

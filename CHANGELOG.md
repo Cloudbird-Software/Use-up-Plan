@@ -73,6 +73,13 @@
   `Report.Render` 人类可读报告（参数 90% 可信区间 / 等价 API 美元读数 /
   残差归因表 / 链健康度）。CLI：`-plan`/`-ledger` 必填，`-claude-dir`
   可选导入历史会话日志，`-skip-posterior`/`-seed`/`-out` 控制后验与输出。
+- internal/estimate（C1）：`SelectStructure` 结构模型选择（Intent §4.3）——
+  窗口 kind 多候选枚举 → 同数据集 MLE → BIC 打分（logL_hat - ½k·ln n，
+  纯似然口径）→ softmax 后验；`StructEvents` 产出 StructureUpdateEvent
+  （PosteriorBefore 取自 spec 现有后验）。`Result` 新增 `LogLikelihood`
+  字段。修复：类别型参数（discrete + categories，如 prompt_granularity）
+  不再进数值自由空间——此前 PriorLogProb 对其恒 -Inf，带类别参数的
+  spec 一进估计即爆。
 - internal/collect `LoadClaudeLogs`/`DefaultClaudeProjectsDir`：递归收集
   `~/.claude/projects/**/*.jsonl` 会话日志并按时间升序合并。
 
