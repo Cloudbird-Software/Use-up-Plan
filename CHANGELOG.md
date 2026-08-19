@@ -17,6 +17,10 @@
   黄金样本往返测试与 fuzz（goccy/go-yaml 落地）。
 - 全类型 YAML 序列化契约：往返稳定（`LoadBytes(Marshal(s))` 语义等价），空集合
   `omitempty` 收敛，类别型离散分布 `probs`+`categories` 归一到 `CategoryProbs`。
+- internal/semantics（A4）：`ResolveBucket`（qdl→纯几何参数求值层）与
+  `Advance`（时间推进纯函数，八窗型分派 + ResetPolicy 归位）；可组合性
+  `advance(advance(s,a,b),b,c) == advance(s,a,c)` 由固定种子 property test
+  强制（U 浮点 1e-9 相对容差）。
 
 ### Changed
 
