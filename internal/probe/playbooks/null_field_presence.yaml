@@ -1,0 +1,20 @@
+# null 字段语义判定 —— Intent §4.3 判别式表第 5 行（Anthropic max20）
+#
+# seven_day_opus 观测到 null。歧义：(a) 该窗不存在于本 plan；
+# (b) 存在但未使用故不报。鉴别：用 Opus 消耗一点后该字段是否出现。
+# 这是结构辨识任务，不是数值任务（Intent §2.2 b_7d_opus.notes）。
+id: null_field_presence
+question: seven_day_opus 为 null 是「窗不存在」还是「未使用不报」？
+structure: field.presence
+bucket_glob: "b_7d_opus"
+candidates: [window_absent, window_unused]
+cost: small_requests
+needs:
+  - {semantic: used_pct, min_count: 2, min_span: 10m}
+discriminators:
+  - id: appear_after_use
+    description: 用一点 Opus 后字段出现 → 未使用不报（窗存在）；仍 null → 窗不存在
+    kind: null_presence
+notes: >
+  一次实验。判定「窗不存在」可把 C_7d_opus 从参数空间删除——维度坍缩
+  让其余参数的 CI 收窄。
