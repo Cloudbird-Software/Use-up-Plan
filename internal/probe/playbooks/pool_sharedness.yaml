@@ -1,0 +1,21 @@
+# 共池判定 —— Intent §4.3 判别式表第 6 行（Anthropic max20）
+#
+# Opus 是否与全局 7d 窗共池？只用 Opus，观察 seven_day 与
+# seven_day_opus 是否同步上涨。共池判定决定路由器的桶间转移语义：
+# 独立池意味着 Opus 消耗不侵蚀全局预算（反之亦然）。
+id: pool_sharedness
+question: 模型族专用窗与全局窗是否共池？
+structure: scope.pool
+bucket_glob: "b_7d*"
+candidates: [shared_pool, independent_pools]
+cost: passive
+needs:
+  - {semantic: used_pct, min_count: 8, min_span: 2h}
+discriminators:
+  - id: synchronized_rise
+    description: 只用 Opus 期间 seven_day 与 seven_day_opus 同步上涨 → 共池；只有 opus 桶涨 → 独立池
+    kind: pool_sync
+notes: >
+  被动观测即可（正常使用中自会只用某族模型）。共池语义决定
+  scope.level 的 cross_product_pool 判定——错判会让 LP 把同一份额度
+  重复分配给两个桶。

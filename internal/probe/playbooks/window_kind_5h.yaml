@@ -1,0 +1,24 @@
+# 5h 窗语义判定 —— Intent §4.3 判别式表第 1 行
+#
+# 公开描述互相矛盾（"rolling window renews 5 hours later" 实为 anchored
+# tumbling）——文档不可信，结构必须实测。断崖 vs 阶梯是每日免费拿到的
+# 最高价值信号：anchored tumbling 存在窗口边界套利，true sliding 不存在。
+id: window_kind_5h
+question: 5h 窗是 anchored tumbling 还是 true sliding？
+structure: window.kind
+bucket_glob: "b_5h*"
+candidates: [tumbling_anchored_on_first_use, sliding_exact]
+cost: passive
+needs:
+  - {semantic: used_pct, min_count: 24, min_span: 12h}
+  - {semantic: reset_at_iso, min_count: 6, min_span: 2h}
+discriminators:
+  - id: resets_at_constancy
+    description: 窗内 resets_at 恒定 → anchored；随每次消耗后延 → sliding
+    kind: resets_at_constancy
+  - id: cliff_vs_stair
+    description: utilization 断崖归零 → tumbling；阶梯衰减 → sliding
+    kind: cliff_vs_stair
+notes: >
+  数据需求：2~3 天被动观测（Intent §4.3）。窗口边界套利的存在性判定
+  完全依赖此剧本——结构错了，数值再准也没用。

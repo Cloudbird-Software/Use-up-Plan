@@ -80,6 +80,13 @@
   字段。修复：类别型参数（discrete + categories，如 prompt_granularity）
   不再进数值自由空间——此前 PriorLogProb 对其恒 -Inf，带类别参数的
   spec 一进估计即爆。
+- internal/probe（C2）：结构探针剧本库——`Playbook` 类型（问题/候选/
+  证据需求/判别式声明，cost·semantic·判别式 kind 封闭集校验）+ 六个
+  种子剧本（embed 进二进制，逐条对应 Intent §4.3 判别式表：5h 窗语义 /
+  周窗锚定 / prompt 粒度 / RPM 桶类型 / null 字段语义 / 共池）+
+  `DryRun` 回放执行器（glob 匹配桶 + semantic 匹配观测 → 证据序列提取
+  + 样本数/时间跨度充分性评估）。dry-run 只读事件库，不发真实请求
+  （ROADMAP C2：真实执行器后置于观测三通道就绪）。
 - internal/collect `LoadClaudeLogs`/`DefaultClaudeProjectsDir`：递归收集
   `~/.claude/projects/**/*.jsonl` 会话日志并按时间升序合并。
 

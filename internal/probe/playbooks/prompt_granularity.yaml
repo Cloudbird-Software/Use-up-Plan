@@ -1,0 +1,22 @@
+# prompt 粒度判定 —— Intent §4.3 判别式表第 4 行（GLM 类 per-request 计量）
+#
+# ★ 最高价值的结构未知数：一个「prompt」是 turn 还是 request？
+# agentic 场景一个 turn 可触发 20 个 requests，倍率差 10~50×。
+# 发 1 个含 5 次工具调用的 turn，看配额掉 1 还是 5——二值结论，一次实验，
+# 极高价值（C1 的 BIC 面无法覆盖：类别参数无数值似然差）。
+id: prompt_granularity
+question: 计量粒度「prompt」是 turn、request 还是 step？
+structure: charge.granularity
+bucket_glob: "b_*prompts*"
+candidates: [turn, request, step]
+cost: small_requests
+risk: 单 turn 含 5 次工具调用，消耗在正常使用量级——无 tos 风险
+needs:
+  - {semantic: used_abs, min_count: 3, min_span: 5m}
+discriminators:
+  - id: turn_step_counting
+    description: 发 1 个含 5 次工具调用的 turn：配额掉 1 → turn；掉 5 → request
+    kind: step_counting
+notes: >
+  一次实验，1 分钟。判定结果直接决定该 plan 的价值评估（容量 × 单次
+  请求等价美元的乘数差 10~50×）——Intent §2.3 GLM 计划的结构套利核心。

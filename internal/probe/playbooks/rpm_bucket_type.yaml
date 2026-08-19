@@ -1,0 +1,19 @@
+# RPM 桶类型判定 —— Intent §4.3 判别式表第 3 行（免费档）
+#
+# RPM 的真实实现是 token bucket（允许 burst 突发）还是离散计数窗？
+# 静默 60s 后能否瞬间打出 N 个请求——一次实验，1 分钟。
+id: rpm_bucket_type
+question: RPM 是 token bucket（连续回补）还是离散计数窗？
+structure: window.kind
+bucket_glob: "b_rpm*"
+candidates: [token_bucket_continuous, tumbling_calendar]
+cost: residual_quota
+needs:
+  - {semantic: remaining_abs, min_count: 6, min_span: 90s}
+discriminators:
+  - id: burst_capacity
+    description: 静默 60s 后连发 N 请求：全部成功 → token bucket（burst 容量）；第 ⌈N·60/W⌉+1 个被拒 → 离散窗
+    kind: cliff_vs_stair
+notes: >
+  一次实验，1 分钟（Intent §4.3）。对路由器的影响：token bucket 桶存在
+  突发预算（burst），短时高并发任务的可用性判定完全不同。

@@ -1,0 +1,23 @@
+# 周窗锚定判定 —— Intent §4.3 判别式表第 2 行
+#
+# 周窗是 rolling 还是账号固定重置时刻？若固定，锚点是周几几点（anchor_utc
+# 的反推依据）？resets_at 始终落在同一星期几同一时刻 → 账号锚定。
+id: weekly_window_anchor
+question: 周窗是账号锚定重置还是 rolling？锚点在周几几点？
+structure: window.kind
+bucket_glob: "b_7d*"
+candidates: [tumbling_account_anchored, sliding_exact]
+cost: passive
+needs:
+  - {semantic: used_pct, min_count: 48, min_span: 168h}
+  - {semantic: reset_at_iso, min_count: 12, min_span: 24h}
+discriminators:
+  - id: resets_at_weekday_constancy
+    description: resets_at 始终落在同一星期几同一时刻 → 账号锚定，且锚点即被反推
+    kind: resets_at_constancy
+  - id: decay_shape
+    description: 周界整窗归零（断崖）→ tumbling；连续衰减 → rolling
+    kind: cliff_vs_stair
+notes: >
+  数据需求：2 周被动观测（Intent §4.3）。锚点判定成功后写回 spec 的
+  anchor_utc 字段（结构判定产出永久性知识）。
