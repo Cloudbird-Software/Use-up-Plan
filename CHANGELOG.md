@@ -21,6 +21,11 @@
   `Advance`（时间推进纯函数，八窗型分派 + ResetPolicy 归位）；可组合性
   `advance(advance(s,a,b),b,c) == advance(s,a,c)` 由固定种子 property test
   强制（U 浮点 1e-9 相对容差）。
+- internal/semantics（A5）：`Charge` 扣减双模式——EXACT（记账，ceil/floor/max
+  精确应用）与 LINEAR_EV（规划，量化取期望、max 取线性上界，仿射可进 LP），
+  外加 `ChargeUpperBound` 严格上界；`Admit` 准入三态（DENY_ADMISSION /
+  DENY_QUOTA（带 retry_after）/ ALLOW_WITH_RISK（p_break）> ALLOW），含
+  瞬时约束（并发/上下文峰值/模型清单）与 glob 最长 pattern 倍率匹配。
 
 ### Changed
 
