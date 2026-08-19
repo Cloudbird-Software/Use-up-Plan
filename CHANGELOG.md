@@ -53,6 +53,10 @@
   「用新 θ 重放旧请求流」的辨识循环本体）；`Estimate` 在线点估计
   （L-BFGS + MoreThuente 强 Wolfe + FunctionConverge 早停，线搜索卡窄谷
   降级返回至今最优点）。新依赖 gonum.org/v1/gonum（BSD-3-Clause）。
+- internal/estimate（B4）：Intent §4.2/§4.4 尺度规范与整数吸附——耦合组
+  探测（并查集找共享尺度自由度的参数集合）、标度规范校验（每个组至少一个
+  frozen 参数）、可解释读数（容量等价美元/倍率偏离/缓存折扣证据）；整数
+  吸附（Laplace 近似 90% CI + 候选/连分数逼近 + 似然比复核 χ²₀.₉₉(1)/2=3.317）。
 - qdl/semantics 新增 `model_family` 作用域层级与模型族前缀匹配——支撑
   Claude Sonnet/Opus 周限专用窗；`ChargeOne` 倍率改为乘在 `(flat+Σ)` 整体，
   per-request 桶（flat=1、terms 空）的模型倍率由此生效。

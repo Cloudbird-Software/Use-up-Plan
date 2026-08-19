@@ -194,7 +194,7 @@ func TestParamSpaceRoundTrip(t *testing.T) {
 			{ID: "f", Prior: qdl.Point(9), Frozen: true},
 		},
 	}
-	ps, err := NewParamSpace(spec)
+	ps, err := NewParamSpace(spec, nil)
 	if err != nil {
 		t.Fatalf("NewParamSpace: %v", err)
 	}
