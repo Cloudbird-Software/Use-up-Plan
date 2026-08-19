@@ -32,6 +32,10 @@ type packageInfo struct {
 	ImportPath string   `json:"ImportPath"`
 	Name       string   `json:"Name"`
 	Imports    []string `json:"Imports"`
+	// TestImports / XTestImports 是仅被 _test.go 引用的 import（包内测试 / 外部
+	// _test 包），必须一并纳入 MOD-1 检查，防止测试文件绕过深导入禁令。
+	TestImports  []string `json:"TestImports"`
+	XTestImports []string `json:"XTestImports"`
 }
 
 func main() {
@@ -50,6 +54,10 @@ func main() {
 }
 
 // listPackages 调用 go list -json ./... 并解码全部包对象。
+//
+// 已知限制：go list 只输出当前构建上下文（GOOS/GOARCH/自定义 build tag）可见的包，
+// 平台限定或 tag 隔离的代码不会进入检查面——完整覆盖需演进为文件级 go/parser 解析
+// （登记于 docs/ROADMAP.md 风险表，随首个平台限定包落地时处理）。
 func listPackages() ([]packageInfo, error) {
 	cmd := exec.Command("go", "list", "-json", "./...")
 	var stdout, stderr bytes.Buffer
@@ -87,13 +95,22 @@ func checkPackages(pkgs []packageInfo, module string, rules map[string]bool) []s
 			errs = append(errs, fmt.Sprintf("MOD-5: internal/%s 已含代码但未在 tools/archlint 的 internalModuleRules 登记边界规则", m))
 		}
 		srcMod := internalModuleName(p.ImportPath, module)
-		for _, imp := range p.Imports {
+		for _, imp := range importsOf(p) {
 			if dstMod, deep := internalModuleDeepImport(imp, module); deep && dstMod != srcMod {
 				errs = append(errs, fmt.Sprintf("MOD-1: %s 深入 import %s —— 跨模块只能 import 对方根包", p.ImportPath, imp))
 			}
 		}
 	}
 	return errs
+}
+
+// importsOf 汇总包的全部 import 来源（生产代码 + 测试代码），MOD-1 对三者同等执法。
+func importsOf(p packageInfo) []string {
+	all := make([]string, 0, len(p.Imports)+len(p.TestImports)+len(p.XTestImports))
+	all = append(all, p.Imports...)
+	all = append(all, p.TestImports...)
+	all = append(all, p.XTestImports...)
+	return all
 }
 
 // allowedMainLocation 报告 main 包是否位于 cmd/ 或 tools/ 下。

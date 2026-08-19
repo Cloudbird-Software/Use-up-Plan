@@ -47,7 +47,8 @@
 ## 依赖规则与提案（审批前零第三方依赖）
 
 新增依赖前先列「依赖名 / 用途 / 许可证 / 是否能用标准库替代」等人批（approver：CODEOWNERS owner）；
-禁止引入 AGPL / GPL-3.0 / SSPL 的库。当前初始化 = **零第三方依赖**（纯标准库）。Phase 0 起待批：
+禁止引入 AGPL / GPL-3.0 / SSPL 的库。当前 = **零第三方依赖**（纯标准库）。已批准待落地
+（2026-08-19 owner 授权，随对应 Phase PR 引入）：
 
 | 名称                       | 用途                        | 许可证        | 标准库可否替代                    |
 | -------------------------- | --------------------------- | ------------- | --------------------------------- |
@@ -60,14 +61,15 @@
 LP 求解器（Phase 4 前）与贝叶斯 NUTS 选型另行提案——Go 生态无 highspy / numpyro 等价物，
 需评估 HiGHS cgo 绑定 vs 纯 Go 实现并附对比，届时决定。
 
-## 已知人工待办（App 无权限，owner 专属）
+## 治理收口记录（2026-08-19，原「已知人工待办」全部消除）
 
-1. `.github/workflows/ci.yml`：`check` job 的 `runtime: node` → `runtime: go`、`node-version: "24"` →
-   `go-version: "1.25"`；push 面 `deps-audit` job 的 `npm audit` 换 Go 等价物（如 govulncheck）——
-   语言切换后无 package-lock.json，npm audit 必红。
-2. 首 PR 触发 adr-required（本 PR 改 AGENTS.md / Makefile / docs/ / .github/）：PR 标题或正文须引用
-   agent-registry 中有效的 ADR 编号（建议引用 ADR-0021，或为本仓立项新建 ADR）。
-3. 在 governance/REPOS.yaml 申报本仓（GM-4，new_repo 流程第 3 步）。
+1. ci.yml：check job 已切 `runtime: go`（go-version "1.25.1"）；push 面 deps-audit 已由
+   npm audit 换 govulncheck@v1.7.0——决策记录见 ADR-0028（agent-registry/decisions）。
+2. adr-required：首个 C1 面 PR 引用 ADR-0028（Go 语言基线）；建仓申报与 bootstrap 直推
+   豁免登记见 ADR-0024（agent-registry PR #36 / .github PR #77）。
+3. governance/REPOS.yaml 已申报本仓（GM-4，.github PR #77）。
+4. 依赖提案已获 owner 批准（2026-08-19）：goccy/go-yaml（MIT）、gonum.org/v1/gonum
+   （BSD-3-Clause）、errcheck（MIT）、goleak（MIT）——按 Phase 落地引入。
 
 ## Phase 0 验收标准（开发起点，来自 Intent.md §9.2）
 

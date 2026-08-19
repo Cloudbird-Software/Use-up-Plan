@@ -23,7 +23,8 @@ QDL（Quota Description Language），用真实请求账本辨识厂商不公开
 - 本仓继承组织全套护栏：CI gate（hygiene / check / deps / adr-required）、gitleaks、zizmor、
   dependabot、CODEOWNERS。
 - 依赖准入：先提案（名称 / 用途 / 许可证 / 标准库可否替代）待人批，禁 AGPL / GPL-3.0 / SSPL；
-  当前为**零第三方依赖**，Phase 0 前待批清单见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)。
+  当前为**零第三方依赖**，首批依赖已获 owner 批准（2026-08-19），清单见
+  [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)。
 
 ## Makefile 接口（所有语言统一，CI 只认这个）
 

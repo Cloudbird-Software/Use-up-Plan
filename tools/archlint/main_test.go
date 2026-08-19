@@ -67,6 +67,16 @@ func TestCheckPackagesDeepImport(t *testing.T) {
 		{"外部依赖不受规则约束", []packageInfo{
 			{ImportPath: mod + "/internal/route", Name: "route", Imports: []string{"example.com/x/internal/a/b"}},
 		}, 0},
+		// 回归：_test.go 的深导入（TestImports / XTestImports）不得绕过 MOD-1。
+		{"包内测试深导入违规", []packageInfo{
+			{ImportPath: mod + "/internal/route", Name: "route", TestImports: []string{mod + "/internal/qdl/loader"}},
+		}, 1},
+		{"外部测试深导入违规", []packageInfo{
+			{ImportPath: mod + "/internal/route", Name: "route", XTestImports: []string{mod + "/internal/qdl/loader"}},
+		}, 1},
+		{"测试导入对方根包通过", []packageInfo{
+			{ImportPath: mod + "/internal/route", Name: "route", TestImports: []string{mod + "/internal/qdl"}, XTestImports: []string{mod + "/internal/qdl"}},
+		}, 0},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

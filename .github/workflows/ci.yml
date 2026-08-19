@@ -18,8 +18,8 @@ jobs:
   deps-audit:
     # push 面依赖审计（ADR-0021，红队 #11-C）：dependency-review 只支持 PR 事件（比对
     # base↔head），直推 main 时 deps job 被 skip 而 gate 判绿——push 面零校验。
-    # 直推本应只有破玻璃（§8 后验），但"跳过=通过"的 gate 语义是声明性漏洞：
-    # push 用 lockfile 审计兜底（npm audit 只读 registry 元数据，无新 action 依赖）。
+    # Go 化（ADR-0028）：npm audit → govulncheck（TS 脚手架移除后无 package-lock.json，
+    # npm audit 必红）；版本锁 v1.7.0 = proxy.golang.org 2026-08-13 最新稳定版。
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -27,19 +27,17 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          python-version: "3.12"
-      - name: npm audit（lockfile 高危阻断）
-        run: |
-          # 只装 npm（runner 预装）；审计 prod+dev 依赖的 high/critical
-          npm audit --package-lock-only --audit-level=high
+          go-version-file: go.mod
+      - name: govulncheck（依赖+标准库高危阻断）
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.7.0 ./...
 
   check:
     uses: Cloudbird-Software/CI-Workflows/.github/workflows/check.yml@v1
     with:
-      runtime: node
-      node-version: "24"
+      runtime: go
+      go-version: "1.25.1"
 
   deps:
     if: github.event_name == 'pull_request'

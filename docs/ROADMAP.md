@@ -1,22 +1,25 @@
 # Use-up-Plan 开发规划（ROADMAP）
 
-> 版本：v1（2026-08-19）｜维护：随 Phase 推进更新｜上游输入：[Intent.md](../Intent.md) §9、
+> 版本：v2（2026-08-19）｜维护：随 Phase 推进更新｜上游输入：[Intent.md](../Intent.md) §9、
 > [ARCHITECTURE.md](ARCHITECTURE.md) 模块映射、治理 policy/languages.yaml + policy/testing.yaml。
 
-## 1. 现状基线（T0 = 2026-08-19）
+## 1. 现状基线（T1 = 2026-08-19）
 
 已就绪：
 
 - Go 骨架：`go.mod`（go 1.25.1）、`cmd/use-up-plan` 入口、`tools/archlint` 架构门禁（GO-3/MOD-1/MOD-5）、
   `internal/qdl` 模块章程；`make check` 本地全绿；零第三方依赖。
 - 文档：README（项目定位）、ARCHITECTURE（语言决策/模块映射/依赖提案）、本规划。
+- 治理收口（T0 阻塞项已全部消除）：
+  1. ci.yml check job 已切 `runtime: go`（go-version 1.25.1）；push 面 deps-audit 已由
+     npm audit 换 govulncheck@v1.7.0（本仓首个正式 PR，ADR-0028）。
+  2. adr-required 引用 ADR-0028（Go 语言基线，agent-registry/decisions）；建仓申报与
+     bootstrap 直推豁免见 ADR-0024（agent-registry PR #36 / .github PR #77）。
+  3. governance/REPOS.yaml 已申报本仓（GM-4，.github PR #77）。
+  4. 依赖提案（goccy/go-yaml / gonum / errcheck / goleak）已获 owner 批准（2026-08-19），
+     清单与状态见 ARCHITECTURE.md；随对应 Phase PR 落地引入。
 
-阻塞项（全部 owner 专属，见 §7 落地手册）：
-
-1. `.github/workflows/ci.yml` 仍为 `runtime: node`——CI 的 check/deps-audit 必红。
-2. 首 PR 触发 adr-required，须引用有效 ADR（建议新建 ADR-0024，草稿在 §7.2）。
-3. governance/REPOS.yaml 申报本仓（GM-4）。
-4. 依赖审批：Phase 0 开工前需批 `goccy/go-yaml`（YAML 解析）与 `gonum`（数值栈）。
+非阻塞遗留（owner 个人安全卫生，与本仓开发无关）：撤销曾在对话/日志中泄露的个人 PAT。
 
 ## 2. 规划原则
 
@@ -141,104 +144,10 @@
 | # | 风险 | 等级 | 缓解 |
 | - | ---- | ---- | ---- |
 | R1 | Go 数值/优化生态缺口（NUTS、生产级 LP） | 中 | S1/S2 选型 spike 前置；必要时受控 sidecar，应用层主体仍 Go |
-| R2 | ci.yml 未切 runtime，CI 全红（阻塞合流） | 高（流程） | §7.1 补丁 owner 5 分钟套用 |
+| R2 | ci.yml 未切 runtime，CI 全红（阻塞合流） | 已消除 | T1 已收口：check 切 `runtime: go`、deps-audit 换 govulncheck@v1.7.0（ADR-0028） |
 | R3 | 厂商接口/语义漂移（percent 精度、响应头变更） | 高（业务固有） | 全量原始头存档 + 结构探针剧本 + CUSUM；这是产品核心能力而非副作用 |
 | R4 | ToS/封号（订阅 OAuth 驱动 swarm） | 中（业务固有） | risk 字段进价值模型（Intent §10.2）；支付方式/IP 拓扑隔离；多厂商分散 |
-| R5 | 供应链（本系统将集中持有全部凭证） | 中 | 最小依赖 + 版本锁定 + govulncheck（§7.1）+ 凭证 age 加密 + 不暴露公网 |
+| R5 | 供应链（本系统将集中持有全部凭证） | 中 | 最小依赖 + 版本锁定 + govulncheck（CI push 面）+ 凭证 age 加密 + 不暴露公网 |
 | R6 | 单 PR 超 400 行（Phase 1 估计器复杂度） | 低 | 已拆 6 个 PR；仍超限的按参数族再拆 |
+| R7 | archlint 仅审计 `go list` 当前构建上下文可见的包，平台限定 / 自定义 build tag 代码不进检查面（评审 #1 已含 TestImports 收口） | 低 | 仓库当前无平台限定包（纯跨平台标准库）；首个平台限定包落地时演进为文件级 go/parser 解析 |
 
-## 7. Owner 落地手册（套用后删除本节）
-
-> 以下操作均为 owner 专属（App 无 workflows/administration 权限；AGENTS.md 硬规则 1/2）。
-
-### 7.0 立即：撤销已泄露的个人 PAT
-
-`ghp_Zwk5…` 已在对话/日志中明文出现且含 `admin:org` 等全量 scope——
-无论后续采用何种认证方案，先到 GitHub → Settings → Developer settings → Personal access tokens 撤销它。
-agent 侧正确认证 = cloudbrid-agent App（脚本已 pin）：
-`GH_TOKEN=$(REPO=Use-up-Plan CB_APP_ID=<AppID> AGENT_APP_SECRET_FILE=<pem> bash <(curl -sS https://raw.githubusercontent.com/Cloudbird-Software/.github/487fd930c46a86bf3fb6865a7223287f8e3446e2/scripts/gh-app-token.sh))`
-
-### 7.1 ci.yml 补丁（两处）
-
-`check` job 改为：
-
-```yaml
-  check:
-    uses: Cloudbird-Software/CI-Workflows/.github/workflows/check.yml@v1
-    with:
-      runtime: go
-      go-version-file: go.mod
-```
-
-`deps-audit` job（push 面）整体替换为：
-
-```yaml
-  deps-audit:
-    # push 面依赖审计（ADR-0021；Go 化：npm audit → govulncheck，锁定 v1.7.0）
-    if: github.event_name == 'push'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with:
-          go-version-file: go.mod
-      - name: govulncheck（依赖+标准库高危阻断）
-        run: go run golang.org/x/vuln/cmd/govulncheck@v1.7.0 ./...
-```
-
-（action SHA 与 CI-Workflows check.yml@v1 现行 pin 一致；govulncheck v1.7.0 = proxy.golang.org 2026-08-13 最新稳定版。）
-
-### 7.2 ADR-0024 草稿 → agent-registry/decisions/ADR-0024-use-up-plan-establishment.md
-
-```markdown
-# ADR-0024: Use-up-Plan 立项与 Go 语言基线
-
-- 状态：accepted（2026-08-19）
-- 影响：Cloudbird-Software/Use-up-Plan
-
-## 背景
-从 template-service 派生 Use-up-Plan（LLM 订阅额度智能调度与真实份额审计，需求见该仓 Intent.md）。
-模板默认携带 TypeScript 脚手架，但本项目为纯后端应用层服务。
-
-## 决策
-1. 应用层语言按 policy/languages.yaml 默认选定 Go（typescript 仅限 frontend-isomorphic，不适用）。
-2. 移除模板 TS 脚手架；ci check job runtime 切换 node → go（go-version-file: go.mod）；
-   push 面 deps-audit 由 npm audit 换 govulncheck@v1.7.0（无 package-lock.json 后 npm audit 必红）。
-3. depcruise（Node 工具链）由自研 tools/archlint 替代，执法 GO-3/MOD-1/MOD-5。
-4. 依赖零起步；首批提案（goccy/go-yaml、gonum）按 dependency_policy 走 owner 审批。
-5. 本 ADR 同时作为该仓首个 C1 面 PR（AGENTS.md/Makefile/docs/.github 变更）的 adr-required 引用。
-
-## 后果
-- Makefile 目标语义不变（check = lint+arch+test），CI 只认 make 接口的约定继续成立。
-- REPOS.yaml 申报 Use-up-Plan（GM-4，随本 ADR 的 PR 一并落）。
-```
-
-### 7.3 REPOS.yaml 申报（Cloudbird-Software/.github → governance/REPOS.yaml）
-
-按该文件既有 schema 追加一条（字段名以现存条目为准）：
-
-```yaml
-- name: Use-up-Plan
-  visibility: public
-  status: active
-  # layer/role 按既有枚举对齐后补
-```
-
-### 7.4 推分支 + 开 PR（本机分支 `chore/go-baseline-init` 已就绪）
-
-```bash
-git push -u origin chore/go-baseline-init
-gh pr create --base main --head chore/go-baseline-init \
-  --title "chore: Go baseline init (ADR-0024)" \
-  --body "初始化：Go 语言基线 + 架构门禁 + ROADMAP。引用 ADR-0024。CI runtime 切换见 ROADMAP §7.1（owner 随本 PR 一并套用）。"
-```
-
-PR 描述必须含 `ADR-0024`（adr-required job 强制）。合并前套用 §7.1 补丁则本 PR 即全绿。
-
-### 7.5 依赖审批（Phase 0 开工前）
-
-批准 ARCHITECTURE.md 依赖提案表：`goccy/go-yaml`（MIT）、`gonum.org/v1/gonum`（BSD-3-Clause）；
-`errcheck`/`goleak` 为 dev 工具链，随对应 Phase 再批。
