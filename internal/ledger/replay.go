@@ -27,6 +27,10 @@ const (
 type ReplayOptions struct {
 	Theta qdl.ParamPoint // 参数快照（两种模式都必须完整）
 	Mode  ReplayMode
+	// ChargeMode 是 Recompute 模式的重算口径：记账核对用 Exact（默认零值）；
+	// 参数估计用 LinearEV——ceil 量化在 Exact 下不可导，跳变目标会让
+	// 梯度优化器卡住，LinearEV 是 Intent §3.2 为规划/优化预留的连续近似。
+	ChargeMode semantics.ChargeMode
 }
 
 // BucketStat 是重放过程中单桶的累计统计。
@@ -208,7 +212,7 @@ func (r *Replayer) deltasFor(e *ChargeEvent) (map[string]float64, error) {
 		Effort:    e.Effort,
 		Dims:      e.Dims,
 	}
-	deltas, err := semantics.Charge(r.spec, req, r.opts.Theta, semantics.ChargeModeExact)
+	deltas, err := semantics.Charge(r.spec, req, r.opts.Theta, r.opts.ChargeMode)
 	if err != nil {
 		return nil, fmt.Errorf("ledger: 重算请求 %s 扣减: %w", e.RequestID, err)
 	}
