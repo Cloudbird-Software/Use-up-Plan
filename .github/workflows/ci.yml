@@ -1,0 +1,118 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  hygiene:
+    uses: Cloudbird-Software/CI-Workflows/.github/workflows/hygiene.yml@v1
+
+  deps-audit:
+    # push 面依赖审计（ADR-0021，红队 #11-C）：dependency-review 只支持 PR 事件（比对
+    # base↔head），直推 main 时 deps job 被 skip 而 gate 判绿——push 面零校验。
+    # 直推本应只有破玻璃（§8 后验），但"跳过=通过"的 gate 语义是声明性漏洞：
+    # push 用 lockfile 审计兜底（npm audit 只读 registry 元数据，无新 action 依赖）。
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: npm audit（lockfile 高危阻断）
+        run: |
+          # 只装 npm（runner 预装）；审计 prod+dev 依赖的 high/critical
+          npm audit --package-lock-only --audit-level=high
+
+  check:
+    uses: Cloudbird-Software/CI-Workflows/.github/workflows/check.yml@v1
+    with:
+      runtime: node
+      node-version: "24"
+
+  deps:
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: write
+    uses: Cloudbird-Software/CI-Workflows/.github/workflows/dep-review.yml@v1
+
+  adr-required:
+    # C1 脚手架面（ADR-0021，GOVERNANCE C1 scope）：供应链入口文件变更须引用 ADR。
+    # 存在性校验读公开仓 agent-registry/decisions（GITHUB_TOKEN 可读公开仓，fail-closed）。
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: C1 脚手架变更须引用 ADR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          PR_API="repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}"
+          CHANGED=$(gh api "$PR_API" --jq '.changed_files')
+          GOT=0; C1_HIT=0; PAGE=1
+          while :; do
+            PAGEJSON=$(gh api "$PR_API/files?per_page=100&page=$PAGE")
+            jq -e 'type == "array"' <<<"$PAGEJSON" >/dev/null 2>&1 || {
+              echo "::error::files API 拉取失败——C1 判定无法保证，fail-closed"; exit 1; }
+            N=$(jq 'length' <<<"$PAGEJSON")
+            GOT=$((GOT+N))
+            if jq -e '[.[] | .filename, (.previous_filename // empty)]
+                     | any(test("^(\\.github/|AGENTS\\.md|Makefile|docs/|zizmor\\.yml|\\.dependency-cruiser\\.cjs)"))' <<<"$PAGEJSON" >/dev/null 2>&1; then
+              C1_HIT=1
+            fi
+            [[ $N -lt 100 ]] && break
+            PAGE=$((PAGE+1))
+          done
+          if [ "$GOT" -lt "$CHANGED" ]; then
+            echo "::error::files API 截断（$GOT/$CHANGED）——fail-closed"; exit 1
+          fi
+          if [ "$C1_HIT" -ne 1 ]; then
+            echo "非 C1 脚手架路径变更，跳过 adr-required"; exit 0
+          fi
+          ADR_RE='\bADR-[0-9]{4}\b'
+          if ! { echo "$PR_TITLE"; echo "$PR_BODY"; } | grep -qE "$ADR_RE"; then
+            echo "::error::C1 脚手架面（.github/AGENTS.md/Makefile/docs/zizmor.yml）变更但 PR 未引用 ADR-NNNN（GOVERNANCE C1——供应链入口，ADR-0021）"
+            exit 1
+          fi
+          ADR_LISTING=$(gh api "repos/Cloudbird-Software/agent-registry/contents/decisions?per_page=100" --paginate --jq '.[].name' 2>/dev/null)
+          if [[ -z "$ADR_LISTING" ]]; then
+            echo "::error::agent-registry/decisions 清单拉取失败（fail-closed）"; exit 1
+          fi
+          MISSING=0
+          for ref in $( { echo "$PR_TITLE"; echo "$PR_BODY"; } | grep -oE "$ADR_RE" | sort -u ); do
+            num="${ref#ADR-}"
+            grep -q "^ADR-${num}-" <<<"$ADR_LISTING" || {
+              echo "::error::引用的 ${ref} 在 agent-registry/decisions/ 无对应文件（幽灵 ADR）"; MISSING=1; }
+          done
+          exit $MISSING
+
+  gate:
+    if: always()
+    needs: [hygiene, check, deps, deps-audit, adr-required]
+    runs-on: ubuntu-latest
+    steps:
+      - name: All required jobs green?
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          echo "$NEEDS"
+          if echo "$NEEDS" | jq -e '[to_entries[] | select(.value.result != "success" and .value.result != "skipped")] | length > 0' >/dev/null; then
+            echo "::error::有 job 未通过"; exit 1
+          fi
