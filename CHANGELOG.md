@@ -39,6 +39,13 @@
   （`Sanitize`：api key / bearer / JWT / AWS / GitHub PAT / key=value）。
   ChargeEvent.Dims 只存原始物理量、WallHitEvent.LedgerSnapshot 强制非空
   （Σwx=C 方程）由校验强制。
+- internal/ledger（B2）：事件流重放与残差归因——`Replayer` 增量重放
+  （Advance 到事件时刻 → 应用事件效果；观测不动账本，账实不符正是
+  reconcile 要检测的信号），双口径 `Replay`：AsRecorded（存量入账）/
+  Recompute（当前 θ 重算，参数辨识与反事实分析入口）；`Reconcile`
+  残差归因（Intent §3.4 归因表工程化）：量化噪声 / 外生消耗 / 系数漂移
+  （CUSUM 变点）/ 未建模 flat / 结构错判（观测重置但账本有存量）/ 负偏 /
+  数据不足 / 未解释，八类封闭分类 + 逐桶证据字符串。
 - qdl/semantics 新增 `model_family` 作用域层级与模型族前缀匹配——支撑
   Claude Sonnet/Opus 周限专用窗；`ChargeOne` 倍率改为乘在 `(flat+Σ)` 整体，
   per-request 桶（flat=1、terms 空）的模型倍率由此生效。
