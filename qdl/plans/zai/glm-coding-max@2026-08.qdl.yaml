@@ -1,0 +1,84 @@
+# GLM Coding Max —— 种子 plan #2（Intent §2.3 原型的落地版）
+#
+# ★ 结构套利的另一半：per-request 计量桶（terms 空 + flat=1）。
+# 与 anthropic/max20 的 terms 满桶对照——大上下文任务在此桶的边际 token 成本为 0，
+# 路由器看 charge rule 的形状即知该把什么任务送哪。这也是机器可读的套利来源。
+id: zai/glm-coding-max@2026-08
+vendor: zai
+plan_name: GLM Coding Max
+price_usd_per_period: 80.0
+period: month
+spec_version: qdl/1.0
+effective_from: 2026-08-01T00:00:00Z
+
+gauge:
+  mode: anchor_to_reference_model_usd
+  reference_model: glm-5.1
+  note: >
+    该桶以 prompt 计数，capacity 单位是「次」，不可直接换美元。
+    价值 = capacity × E[你实际塞进去的单次请求的等价 API 美元]。
+    ★ 因此该 plan 的价值内生依赖分配策略 → 必须在 LP 中联合求解，
+    不可先独立定价再排序。
+
+parameters:
+  - id: zai.max.C_5h_prompts
+    unit: prompts
+    prior: {kind: normal, params: {mu: 1600, sigma: 300}}
+    provenance: vendor_doc      # 官方声称 ~1600/5h，需验真——永不 frozen
+    bounds: [0, 10000]
+    snap_candidates: [1200, 1500, 1600, 2000]
+  - id: zai.max.mult_advanced
+    unit: dimensionless
+    prior: {kind: uniform, params: {low: 1.0, high: 5.0}}
+    snap_candidates: [1.0, 1.5, 2.0, 3.0, 5.0]
+    provenance: assumed
+    # 官方措辞「高级模型按更高倍率消耗配额」，倍率不公开 → 必须辨识
+  # ★ 最高价值的结构未知数：一个「prompt」是 turn 还是 request？
+  # agentic 场景一个 turn 可触发 20 个 requests，倍率差 10~50×
+  - id: zai.max.prompt_granularity
+    unit: categorical
+    prior: {kind: discrete, categories: [turn, request, step], probs: [0.4, 0.4, 0.2]}
+    provenance: assumed
+
+buckets:
+  - id: b_5h_prompts
+    unit: requests            # 或 turns，由 prompt_granularity 辨识后定
+    capacity: zai.max.C_5h_prompts
+    window:
+      kind_candidates: [tumbling_anchored_on_first_use, tumbling_calendar]
+      length: PT5H
+      reset: zero
+    scope: {level: account}
+    charge:
+      flat: 1.0               # ★ 每请求扣 1，与 token 数完全无关
+      terms: []               # ★ 空！token 在此桶边际成本为 0
+      model_multiplier:
+        glm-5.1:     zai.max.mult_advanced
+        glm-5-turbo: 1.0
+      linearization: exact_linear
+    observability:
+      - source: web_dom
+        locator: "[data-testid=quota-remaining]"
+        semantic: remaining_abs
+        quantization: {kind: exact}
+        attribution_lag_s: 60
+      - source: error_body
+        locator: 'quota.*?(\d+)\s*/\s*(\d+)'
+        semantic: used_abs
+    overflow: [{action: hard_block_with_reset_hint}]
+
+channels:
+  - id: glm_anthropic_compat
+    protocol: anthropic_messages     # 多数国产 plan 提供 Anthropic 兼容端点
+    base_url: https://open.bigmodel.cn/api/anthropic
+    auth: api_key
+    reliability: {interruption_hazard_per_hour: 0.05, latency_p50_ms: 1800}
+    admission:
+      limits: {concurrency: 5, context_tokens_peak: 200000}
+    models:
+      - {logical_model: T2_WORKHORSE, vendor_model_id: glm-5.1,
+         family: glm, tokenizer: glm}
+
+risk:
+  tos_violation_class: none
+  ban_hazard_monthly: 0.005

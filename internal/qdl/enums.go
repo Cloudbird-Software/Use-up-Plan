@@ -79,6 +79,7 @@ var (
 	scopeLevels = map[string]bool{
 		string(ScopeAccount): true, string(ScopeOrganization): true, string(ScopeWorkspace): true,
 		string(ScopeCredential): true, string(ScopeSubscription): true, string(ScopeCrossProductPool): true,
+		string(ScopeModelFamily): true,
 	}
 	calendarAligns = map[string]bool{
 		"utc_midnight": true, "local_midnight": true, "billing_day": true,

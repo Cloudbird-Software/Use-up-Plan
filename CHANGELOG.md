@@ -26,6 +26,14 @@
   外加 `ChargeUpperBound` 严格上界；`Admit` 准入三态（DENY_ADMISSION /
   DENY_QUOTA（带 retry_after）/ ALLOW_WITH_RISK（p_break）> ALLOW），含
   瞬时约束（并发/上下文峰值/模型清单）与 glob 最长 pattern 倍率匹配。
+- qdl/plans 种子计划（A6）：Anthropic Max20（不透明单元锚定价目表 + 共享池 +
+  模型族专用窗）、GLM Coding Max（per-request 计量，token 边际成本为 0 的
+  结构套利形态）、免费档模板（RPM/RPD/TPM 多维硬桶 + 高中断率通道）；
+  golden 加载契约（`TestSeedPlansLoad`/`RoundTrip`）与语义层行为测试
+  （桶命中 / per-request 扣减 / 三态准入）。
+- qdl/semantics 新增 `model_family` 作用域层级与模型族前缀匹配——支撑
+  Claude Sonnet/Opus 周限专用窗；`ChargeOne` 倍率改为乘在 `(flat+Σ)` 整体，
+  per-request 桶（flat=1、terms 空）的模型倍率由此生效。
 
 ### Changed
 

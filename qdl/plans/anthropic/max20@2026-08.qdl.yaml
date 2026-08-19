@@ -1,0 +1,235 @@
+# Anthropic Max 20x —— 种子 plan #1（Intent §2.2 原型的落地版）
+#
+# 刻意体现的难点：不透明单位（opaque_units）、跨产品共享池（网页/桌面端偷额度）、
+# 结构未知窗（5h anchored vs sliding）、模型族专用周窗、gauge 标度锚定。
+# 一切数值系数都是带先验的待估参数——厂商声称值只配当先验。
+id: anthropic/max20@2026-08
+vendor: anthropic
+plan_name: Max 20x
+price_usd_per_period: 200.0
+period: month
+spec_version: qdl/1.0
+effective_from: 2026-08-01T00:00:00Z
+
+gauge:
+  mode: anchor_to_vendor_ratecard
+  note: >
+    opaque_units 无绝对单位。规范化：令 opaque_units 与官方 API 美元等价，
+    即 w_input := ratecard_input_usd_per_token。于是所有 capacity 参数的单位
+    自动为「等价 API 美元」，直接给出 plan 用尽的真实价值。若拟合残差显著，
+    说明订阅内部权重 != API 价目比例，残差即厂商模糊定价的定量证据。
+  ratecard_usd_per_unit:      # 需按当期官方价目表填，务必版本化
+    input_tokens: 3.0e-6
+    cache_write_tokens: 3.75e-6
+    cache_read_tokens: 0.3e-6
+    output_tokens: 15.0e-6
+
+parameters:
+  # ---- 5 小时窗容量（未知，单位 = 等价 API 美元）----
+  - id: anthropic.max20.C_5h
+    unit: usd_equivalent
+    prior: {kind: lognormal, params: {mu: 2.7, sigma: 1.0}}   # 中位 ≈ $15
+    provenance: assumed
+    bounds: [0.1, 500]
+  # ---- 7 天全局窗容量 ----
+  - id: anthropic.max20.C_7d
+    unit: usd_equivalent
+    prior: {kind: lognormal, params: {mu: 5.5, sigma: 1.0}}   # 中位 ≈ $245
+    provenance: assumed
+  # ---- 7 天 Sonnet 专用窗 ----
+  - id: anthropic.max20.C_7d_sonnet
+    unit: usd_equivalent
+    prior: {kind: lognormal, params: {mu: 5.2, sigma: 1.2}}
+  # ---- 7 天 Opus 专用窗（可能为 null/不存在，见 b_7d_opus.notes）----
+  - id: anthropic.max20.C_7d_opus
+    unit: usd_equivalent
+    prior: {kind: lognormal, params: {mu: 4.5, sigma: 1.3}}
+  # ---- 加购 credits 月上限（从 extra_usage.monthly_limit 直读的观测参数）----
+  - id: anthropic.max20.extra_monthly_limit
+    unit: credits
+    prior: {kind: lognormal, params: {mu: 3.9, sigma: 0.8}}   # 中位 ≈ $50
+    provenance: vendor_api
+
+  # ---- 模型倍率（相对 gauge 的偏离；1.0 = 与 API 价目一致）----
+  - id: anthropic.max20.mult_opus
+    unit: dimensionless
+    prior: {kind: lognormal, params: {mu: 0.0, sigma: 0.4}}
+    snap_candidates: [1.0, 1.25, 1.5, 2.0, 3.0, 5.0]
+    provenance: assumed
+  - id: anthropic.max20.mult_sonnet
+    unit: dimensionless
+    prior: {kind: point, params: {value: 1.0}}
+    frozen: true               # 作为 gauge 的一部分固定，打破尺度自由度
+    provenance: gauge
+  - id: anthropic.max20.mult_haiku
+    unit: dimensionless
+    prior: {kind: lognormal, params: {mu: 0.0, sigma: 0.5}}
+    snap_candidates: [0.2, 0.25, 0.3, 1.0]
+
+  # ---- cache_read 权重（高价值未知数：订阅是否保留缓存折扣）----
+  # 语义 = w_input × ratio，ratio ∈ [0.05, 1.0]；QDL 无表达式语言，
+  # 故直接以待估绝对权重表达（gauge 已锚 opaque_units ≡ API 美元）。
+  # snap 候选对应 ratio 0.1/0.25/0.5/1.0（0.1 = 与 API 价目一致的缓存折扣）。
+  - id: anthropic.max20.w_cache_read
+    unit: usd_per_token
+    prior: {kind: lognormal, params: {mu: -14.5, sigma: 1.2}}   # 中位 ≈ 5e-7
+    bounds: [1.5e-8, 3.0e-6]
+    snap_candidates: [3.0e-7, 7.5e-7, 1.5e-6, 3.0e-6]
+    provenance: assumed
+    # 若吸附到 3e-7（ratio=0.1），缓存在订阅里同样极度划算；
+    # 若到 3e-6（ratio=1.0），厂商取消了订阅内的缓存折扣
+
+  # ---- 外生消耗率（你手动用网页/桌面端偷掉的额度）----
+  - id: anthropic.max20.exo_rate_5h
+    unit: usd_equivalent_per_hour
+    prior: {kind: lognormal, params: {mu: -2.0, sigma: 1.5}}
+
+buckets:
+  - id: b_5h
+    unit: opaque_units
+    capacity: anthropic.max20.C_5h
+    exogenous_drain: true
+    exogenous_rate_param: anthropic.max20.exo_rate_5h
+    window:
+      # ★ 结构未知：这是 anchored tumbling 还是 true sliding？
+      kind_candidates: [tumbling_anchored_on_first_use, sliding_exact]
+      kind_posterior: {tumbling_anchored_on_first_use: 0.6, sliding_exact: 0.4}
+      length: PT5H
+      reset: zero
+    scope:
+      level: cross_product_pool
+      pool_id: anthropic_subscription_pool
+      shared_with_products: ["claude_code", "claude.ai", "desktop", "cowork"]
+    charge:
+      terms:
+        - {dim: input_tokens,       coeff: 3.0e-6}
+        - {dim: cache_write_tokens, coeff: 3.75e-6}
+        - {dim: cache_read_tokens,  coeff: anthropic.max20.w_cache_read}
+        - {dim: output_tokens,      coeff: 15.0e-6}
+        - {dim: reasoning_tokens,   coeff: 15.0e-6}
+      model_multiplier:
+        claude-opus-*:   anthropic.max20.mult_opus
+        claude-sonnet-*: anthropic.max20.mult_sonnet
+        claude-haiku-*:  anthropic.max20.mult_haiku
+      linearization: exact_linear
+    observability:
+      - source: usage_endpoint
+        url: https://api.anthropic.com/api/oauth/usage
+        auth: oauth_bearer
+        extra_headers: {anthropic-beta: oauth-2025-04-20}
+        locator: "$.five_hour.utilization"
+        semantic: used_pct
+        quantization: {kind: unknown}   # 观测到 37.0/26.0/1.0，疑似整数，需实测
+        poll_interval_s: 180
+        trust: 0.95
+      - source: usage_endpoint
+        url: https://api.anthropic.com/api/oauth/usage
+        auth: oauth_bearer
+        locator: "$.five_hour.resets_at"
+        semantic: reset_at_iso
+      - source: local_log
+        locator: "~/.claude/projects/**/*.jsonl"
+        semantic: used_abs             # 精确 token 账本，用于 ledger 校验
+        trust: 1.0
+    overflow:
+      - action: spill_to_bucket
+        target: b_extra_credits
+      - action: hard_block_with_reset_hint
+
+  - id: b_7d_all
+    unit: opaque_units
+    capacity: anthropic.max20.C_7d
+    window:
+      kind_candidates: [tumbling_account_anchored, sliding_exact]
+      kind_posterior: {tumbling_account_anchored: 0.7, sliding_exact: 0.3}
+      length: P7D
+      anchor_utc: "UNKNOWN"     # 需从 resets_at 序列反推
+      reset: zero
+    scope: {level: cross_product_pool, pool_id: anthropic_subscription_pool}
+    charge: {"$ref": "#/buckets/b_5h/charge"}   # 假设同一 charge rule（待检验！）
+    observability:
+      - source: usage_endpoint
+        url: https://api.anthropic.com/api/oauth/usage
+        auth: oauth_bearer
+        locator: "$.seven_day.utilization"
+        semantic: used_pct
+        quantization: {kind: unknown}
+
+  - id: b_7d_sonnet
+    unit: opaque_units
+    capacity: anthropic.max20.C_7d_sonnet
+    window: {kind_candidates: [tumbling_account_anchored], length: P7D, reset: zero}
+    scope: {level: model_family, model_families: ["claude-sonnet"]}
+    charge: {"$ref": "#/buckets/b_5h/charge"}
+    observability:
+      - source: usage_endpoint
+        url: https://api.anthropic.com/api/oauth/usage
+        auth: oauth_bearer
+        locator: "$.seven_day_sonnet.utilization"
+        semantic: used_pct
+
+  - id: b_7d_opus
+    unit: opaque_units
+    capacity: anthropic.max20.C_7d_opus
+    window: {kind_candidates: [tumbling_account_anchored], length: P7D, reset: zero}
+    scope: {level: model_family, model_families: ["claude-opus"]}
+    charge: {"$ref": "#/buckets/b_5h/charge"}
+    observability:
+      - source: usage_endpoint
+        url: https://api.anthropic.com/api/oauth/usage
+        auth: oauth_bearer
+        locator: "$.seven_day_opus.utilization"
+        semantic: used_pct
+    notes: >
+      观测到该字段可能为 null。null 的语义歧义：(a) 该窗不存在于本 plan；
+      (b) 存在但未使用故不报。必须靠「用一点 Opus 后是否出现」来鉴别。
+      这是一个结构辨识任务，不是数值任务。
+
+  - id: b_extra_credits
+    unit: credits
+    capacity: anthropic.max20.extra_monthly_limit   # 从 extra_usage.monthly_limit 直读
+    window: {kind_candidates: [billing_cycle], reset: refill_to_full}
+    scope: {level: subscription}
+    charge: {terms: [{dim: currency_usd, coeff: 1.0}]}
+    observability:
+      - source: usage_endpoint
+        url: https://api.anthropic.com/api/oauth/usage
+        auth: oauth_bearer
+        locator: "$.extra_usage.monthly_limit"
+        semantic: limit_abs
+      - source: usage_endpoint
+        url: https://api.anthropic.com/api/oauth/usage
+        auth: oauth_bearer
+        locator: "$.extra_usage.used_credits"
+        semantic: used_abs
+      - source: usage_endpoint
+        url: https://api.anthropic.com/api/oauth/usage
+        auth: oauth_bearer
+        locator: "$.extra_usage.is_enabled"
+        semantic: plan_type
+    overflow:
+      - {action: spill_to_payg, requires_explicit_enable: true}
+      - {action: hard_block}
+
+channels:
+  - id: claude_code_oauth
+    protocol: anthropic_messages
+    auth: oauth_bearer
+    reliability: {interruption_hazard_per_hour: 0.01, resume_supported: true}
+    spoofing_required:
+      tos_note: >
+        Anthropic 要求第三方工具使用 API key，不得以订阅 OAuth token 驱动
+        第三方 agent 框架。将此通道用于 swarm 属明确 ToS 违反。
+    models:
+      - {logical_model: T1_REASONER,  vendor_model_id: claude-opus-4-6,
+         family: claude-opus, tokenizer: anthropic, context_window: 200000}
+      - {logical_model: T2_WORKHORSE, vendor_model_id: claude-sonnet-4-6,
+         family: claude-sonnet, tokenizer: anthropic}
+      - {logical_model: T3_CHEAP,     vendor_model_id: claude-haiku-4-5,
+         family: claude-haiku, tokenizer: anthropic}
+
+risk:
+  tos_violation_class: explicit_breach
+  ban_hazard_monthly: 0.08
+  ban_blast_radius: [acct_anthropic_1, acct_anthropic_2]   # 同支付方式 → 连坐
+  prepaid_at_risk_usd: 200.0

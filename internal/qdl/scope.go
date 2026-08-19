@@ -11,6 +11,7 @@ const (
 	ScopeCredential       ScopeLevel = "credential"
 	ScopeSubscription     ScopeLevel = "subscription"
 	ScopeCrossProductPool ScopeLevel = "cross_product_pool"
+	ScopeModelFamily      ScopeLevel = "model_family" // 模型族专用窗（Claude 的 Sonnet/Opus 周限）
 )
 
 // Scope 描述桶挂在谁身上。Models 为 nil 表示全部模型。

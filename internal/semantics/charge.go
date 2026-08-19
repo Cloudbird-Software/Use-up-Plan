@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"path"
+	"strings"
 
 	"github.com/Cloudbird-Software/Use-up-Plan/internal/qdl"
 )
@@ -120,9 +121,11 @@ func Charge(spec *qdl.PlanSpec, req *Request, theta qdl.ParamPoint, mode ChargeM
 
 // ChargeOne 在单个桶上计算扣减（Intent §1.6 公式）：
 //
-//	EXACT:     q_b( max( flat + m(model)·e(effort)·Σ w_d·q_d(x_d), floor ) )
-//	LINEAR_EV: flat + floor + m·e·Σ w_d·ev_d(x_d)        （仿射，LP 可解）
+//	EXACT:     q_b( max( m(model)·e(effort)·( flat + Σ w_d·q_d(x_d) ), floor ) )
+//	LINEAR_EV: m·e·( flat + Σ w_d·ev_d(x_d) ) + floor        （仿射，LP 可解）
 //
+// 倍率乘在 (flat+Σ) 整体上——per-request 桶（flat=1、terms 空）的「高级模型
+// 消耗更多配额」正由此生效；token 桶 flat=0 时退化为 Intent 原式 m·e·Σ。
 // LINEAR_EV 的线性化：量化取期望（均匀假设下 E[ceil(X/s)·s] ≈ x+s/2），
 // max(a, floor) 取线性上界 a+floor（floor=0 时退化为 a 本身）。
 func ChargeOne(rc *ResolvedCharge, req *Request, mode ChargeMode) float64 {
@@ -138,11 +141,11 @@ func ChargeOne(rc *ResolvedCharge, req *Request, mode ChargeMode) float64 {
 		}
 	}
 	if mode == ChargeModeExact {
-		raw := rc.Flat + m*e*sum
+		raw := m * e * (rc.Flat + sum)
 		return rc.Quantize.Apply(math.Max(raw, rc.Floor))
 	}
-	// LINEAR_EV：floor 常数项移入（线性上界 flat + floor + ...），不做 max。
-	return rc.Flat + rc.Floor + m*e*sum
+	// LINEAR_EV：floor 常数项移入（线性上界 m·e·(flat+Σ) + floor），不做 max。
+	return m*e*(rc.Flat+sum) + rc.Floor
 }
 
 // ChargeUpperBound 是 EXACT 模式的严格上界（admit 的撞墙风险评估用）：
@@ -154,7 +157,7 @@ func ChargeUpperBound(rc *ResolvedCharge, req *Request) float64 {
 	for _, t := range rc.Terms {
 		sum += t.W * quantizeUB(t.Quantize, req.Dims[t.Dim])
 	}
-	raw := rc.Flat + m*e*sum
+	raw := m * e * (rc.Flat + sum)
 	ub := raw + rc.Floor // max(raw, floor) <= raw+floor（非负假设）
 	return quantizeUB(rc.Quantize, ub)
 }
@@ -199,10 +202,14 @@ func globBest(table map[string]float64, key string) float64 {
 	return best
 }
 
-// BucketMatches 判定请求是否命中桶（BucketSet 成员）：scope 的模型/通道/
-// 努力级过滤全部通过（nil = 不过滤；模型支持 glob）。
+// BucketMatches 判定请求是否命中桶（BucketSet 成员）：scope 的模型/模型族/
+// 通道/努力级过滤全部通过（nil = 不过滤；模型支持 glob，模型族按厂商模型 ID
+// 前缀匹配——"claude-sonnet" 族覆盖 "claude-sonnet-4-6"）。
 func BucketMatches(b *qdl.Bucket, req *Request) bool {
 	if len(b.Scope.Models) > 0 && !globMatchAny(b.Scope.Models, req.Model) {
+		return false
+	}
+	if len(b.Scope.ModelFamilies) > 0 && !familyMatchAny(b.Scope.ModelFamilies, req.Model) {
 		return false
 	}
 	if len(b.Scope.Channels) > 0 && !contains(b.Scope.Channels, req.ChannelID) {
@@ -212,6 +219,17 @@ func BucketMatches(b *qdl.Bucket, req *Request) bool {
 		return false
 	}
 	return true
+}
+
+// familyMatchAny 报告厂商模型 ID 是否属于某个模型族（前缀语义：
+// 族名是模型 ID 的第一段前缀，如 claude-sonnet → claude-sonnet-4-6）。
+func familyMatchAny(families []string, model string) bool {
+	for _, f := range families {
+		if strings.HasPrefix(model, f) {
+			return true
+		}
+	}
+	return false
 }
 
 func globMatchAny(patterns []string, s string) bool {

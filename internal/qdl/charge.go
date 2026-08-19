@@ -81,6 +81,8 @@ func sortedKeys[V any](m map[string]V) []string {
 
 // UnmarshalYAML 应用 Pydantic 等价缺省（Intent §2.1 ChargeRule）：
 // flat/floor 缺省 Const(0)，linearization 缺省 exact_linear。
+// `terms: []`（per-request 桶的显式空）与缺省等价、归一到 nil——空集合
+// omitempty 收敛的序列化契约（往返稳定）。
 // zero-value Coeff 不经此路径（loader 拒绝），语义仍由 Validate 兜底。
 func (r *ChargeRule) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var raw struct {
@@ -99,7 +101,9 @@ func (r *ChargeRule) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	if raw.Flat != nil {
 		r.Flat = *raw.Flat
 	}
-	r.Terms = raw.Terms
+	if len(raw.Terms) > 0 {
+		r.Terms = raw.Terms
+	}
 	r.ModelMultiplier = raw.ModelMultiplier
 	r.EffortMultiplier = raw.EffortMultiplier
 	r.Floor = Const(0)
