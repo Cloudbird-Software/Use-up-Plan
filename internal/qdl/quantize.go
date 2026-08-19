@@ -16,8 +16,8 @@ const (
 
 // Quantize 是量化规则（维度级或桶级）。
 type Quantize struct {
-	Mode QuantizeMode
-	Step float64
+	Mode QuantizeMode `yaml:"mode"`
+	Step float64      `yaml:"step"`
 }
 
 // Apply 对 x 应用量化。Mode 为 none 或 Step<=0 时原样返回；

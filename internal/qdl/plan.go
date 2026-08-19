@@ -8,21 +8,21 @@ import (
 // RiskProfile 把 ToS/封号风险显式建模（Intent §1.8/§10.2）：封号概率作为折损系数
 // 进价值模型，ban_blast_radius 强制面对「同支付方式/同 IP 连坐」拓扑。
 type RiskProfile struct {
-	TOSViolationClass string // none | grey | explicit_breach
-	BanHazardMonthly  float64
-	BanBlastRadius    []string // 连坐范围（账号/支付方式/IP 拓扑）
-	PrepaidAtRiskUSD  float64
+	TOSViolationClass string   `yaml:"tos_violation_class"` // none | grey | explicit_breach
+	BanHazardMonthly  float64  `yaml:"ban_hazard_monthly"`
+	BanBlastRadius    []string `yaml:"ban_blast_radius"` // 连坐范围（账号/支付方式/IP 拓扑）
+	PrepaidAtRiskUSD  float64  `yaml:"prepaid_at_risk_usd"`
 }
 
 // Grant 是一笔额度授予：基础/活动赠送/加购/结转/推荐。
 type Grant struct {
-	ID         string
-	Kind       string // base | promo | topup | rollover | referral
-	BucketID   string
-	Amount     Coeff
-	GrantedAt  *time.Time
-	ExpiresAt  *time.Time
-	Conditions string // 自然语言原文，供文档语义 diff
+	ID         string     `yaml:"id"`
+	Kind       string     `yaml:"kind"` // base | promo | topup | rollover | referral
+	BucketID   string     `yaml:"bucket_id"`
+	Amount     Coeff      `yaml:"amount"`
+	GrantedAt  *time.Time `yaml:"granted_at"`
+	ExpiresAt  *time.Time `yaml:"expires_at"`
+	Conditions string     `yaml:"conditions"` // 自然语言原文，供文档语义 diff
 }
 
 // CalibrationGauge 是标度规范（Intent §0.3）：只观测百分比时 (w, C) 只能辨识到
@@ -30,30 +30,30 @@ type Grant struct {
 // ——「这个 plan 用尽等于买了多少美元的 API」直接成为辨识问题的规范化常数。
 // 若拟合残差显著，残差本身就是厂商模糊定价关系的定量证据。
 type CalibrationGauge struct {
-	Mode               string // anchor_to_vendor_ratecard | anchor_to_reference_model_usd | anchor_to_observed_absolute
-	RatecardUSDPerUnit map[Dim]float64
-	ReferenceModel     string
-	Note               string
+	Mode               string          `yaml:"mode"` // anchor_to_vendor_ratecard | anchor_to_reference_model_usd | anchor_to_observed_absolute
+	RatecardUSDPerUnit map[Dim]float64 `yaml:"ratecard_usd_per_unit"`
+	ReferenceModel     string          `yaml:"reference_model"`
+	Note               string          `yaml:"note"`
 }
 
 // PlanSpec 是一份厂商订阅计划的完整 QDL 描述。加载（loader.Load）后不可变；
 // Validate 是安全契约的唯一执法点，loader 与测试都必须调用。
 type PlanSpec struct {
-	ID                    string // "anthropic/max20@2026-08"
-	Vendor                string
-	PlanName              string
-	PriceUSDPerPeriod     float64
-	Period                string // month | year | week | one_off
-	SpecVersion           string
-	VendorDocSnapshotHash string // 页面语义 diff 用
-	EffectiveFrom         time.Time
-	EffectiveUntil        *time.Time
-	Buckets               []Bucket
-	Channels              []Channel
-	Grants                []Grant
-	Parameters            []Parameter
-	Gauge                 CalibrationGauge
-	Risk                  RiskProfile
+	ID                    string           `yaml:"id"` // "anthropic/max20@2026-08"
+	Vendor                string           `yaml:"vendor"`
+	PlanName              string           `yaml:"plan_name"`
+	PriceUSDPerPeriod     float64          `yaml:"price_usd_per_period"`
+	Period                string           `yaml:"period"` // month | year | week | one_off
+	SpecVersion           string           `yaml:"spec_version"`
+	VendorDocSnapshotHash string           `yaml:"vendor_doc_snapshot_hash"` // 页面语义 diff 用
+	EffectiveFrom         time.Time        `yaml:"effective_from"`
+	EffectiveUntil        *time.Time       `yaml:"effective_until"`
+	Buckets               []Bucket         `yaml:"buckets"`
+	Channels              []Channel        `yaml:"channels"`
+	Grants                []Grant          `yaml:"grants"`
+	Parameters            []Parameter      `yaml:"parameters"`
+	Gauge                 CalibrationGauge `yaml:"gauge"`
+	Risk                  RiskProfile      `yaml:"risk"`
 }
 
 // Bucket 按 ID 查找桶；不存在返回 nil。

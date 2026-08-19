@@ -38,14 +38,12 @@ const (
 //	{kind: discrete,  values: [1200, 1600], probs: [0.5, 0.5]}          // 数值型
 //	{kind: discrete,  categories: [turn, request], probs: [0.5, 0.5]}  // 类别型（结构未知数）
 type Distribution struct {
-	Kind   DistributionKind
-	Params map[string]float64 // point: value / normal|lognormal: mu,sigma / uniform: low,high
-	// 数值型离散分布。
-	Values []float64
-	Probs  []float64
-	// 类别型离散分布（结构辨识用，如 prompt 粒度 turn/request/step）。
-	Categories    []string
-	CategoryProbs []float64
+	Kind          DistributionKind   `yaml:"kind"`
+	Params        map[string]float64 `yaml:"params"` // point: value / normal|lognormal: mu,sigma / uniform: low,high
+	Values        []float64          `yaml:"values"` // 数值型离散分布
+	Probs         []float64          `yaml:"probs"`
+	Categories    []string           `yaml:"categories"` // 类别型离散分布（结构辨识用，如 prompt 粒度 turn/request/step）
+	CategoryProbs []float64          `yaml:"category_probs"`
 }
 
 // Point 构造确定值分布。
@@ -55,26 +53,26 @@ func Point(v float64) Distribution {
 
 // DriftState 是参数漂移检测器的运行状态（CUSUM/Page-Hinkley，见 estimate/drift）。
 type DriftState struct {
-	Detector          string     // cusum | page_hinkley
-	Statistic         float64    // 当前累积统计量
-	LastChangepointAt *time.Time // 最近变点
-	Alarm             bool       // 越过阈值，触发局部重估 + StructureUpdateEvent
+	Detector          string     `yaml:"detector"`            // cusum | page_hinkley
+	Statistic         float64    `yaml:"statistic"`           // 当前累积统计量
+	LastChangepointAt *time.Time `yaml:"last_changepoint_at"` // 最近变点
+	Alarm             bool       `yaml:"alarm"`               // 越过阈值，触发局部重估 + StructureUpdateEvent
 }
 
 // Parameter 是待估参数（一等公民）。权重与容量建模为带置信区间的可学习量，
 // 而非写死常量——这是整个系统区别于现有开源工具的核心决策（Intent §0 难点 1）。
 type Parameter struct {
-	ID         string // 全局唯一，e.g. "anthropic.max20.C_5h"
-	Unit       string // "usd_equivalent" / "prompts" / "dimensionless" ...
-	Prior      Distribution
-	Posterior  *Distribution // nil = 尚未估计
-	Provenance Provenance
-	Bounds     [2]*float64 // [lower, upper]；nil = 该侧无界
+	ID         string        `yaml:"id"`   // 全局唯一，e.g. "anthropic.max20.C_5h"
+	Unit       string        `yaml:"unit"` // "usd_equivalent" / "prompts" / "dimensionless" ...
+	Prior      Distribution  `yaml:"prior"`
+	Posterior  *Distribution `yaml:"posterior"` // nil = 尚未估计
+	Provenance Provenance    `yaml:"provenance"`
+	Bounds     [2]*float64   `yaml:"bounds"` // [lower, upper]；nil = 该侧无界
 	// SnapCandidates：厂商内部系数几乎总是整齐值（1、5、0.1、0.25）。
 	// 估计落入候选的 90% 区间内则吸附并 frozen（级联收窄其余参数）。
-	SnapCandidates []float64
-	Frozen         bool // gauge 锚定参数不再更新
-	Drift          *DriftState
+	SnapCandidates []float64   `yaml:"snap_candidates"`
+	Frozen         bool        `yaml:"frozen"` // gauge 锚定参数不再更新
+	Drift          *DriftState `yaml:"drift"`
 }
 
 // ParamPoint 是一次求值所用的参数取值快照（MAP 点估计或采样点）。
@@ -112,4 +110,31 @@ func (c Coeff) Resolve(theta ParamPoint) (float64, error) {
 		return 0, fmt.Errorf("qdl: 参数引用 %q 未在 ParamPoint 中提供", c.ref)
 	}
 	return v, nil
+}
+
+// UnmarshalYAML 实现 YAML 双态解码（Intent §2.1 Coeff = float | ParamRef）：
+// 数值标量 → 常量；字符串 → 参数引用。其余形态（映射/序列/空串引用）拒绝。
+func (c *Coeff) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var f float64
+	if err := unmarshal(&f); err == nil {
+		*c = Const(f)
+		return nil
+	}
+	var s string
+	if err := unmarshal(&s); err != nil {
+		return fmt.Errorf("qdl: Coeff 必须是数值常量或参数引用字符串")
+	}
+	if s == "" {
+		return fmt.Errorf("qdl: Coeff 参数引用不能为空串")
+	}
+	*c = Ref(s)
+	return nil
+}
+
+// MarshalYAML 输出双态的规范形：常量 → 数值，引用 → 字符串。
+func (c Coeff) MarshalYAML() (interface{}, error) {
+	if c.ref != "" {
+		return c.ref, nil
+	}
+	return c.val, nil
 }

@@ -17,24 +17,24 @@ const (
 
 // OverflowStep 是溢出瀑布的一步。
 type OverflowStep struct {
-	Action                 OverflowAction
-	Target                 string // spill/degrade 的目标桶或模型
-	Factor                 *float64
-	MaxWaitS               *int // queue 的最大等待
-	RequiresExplicitEnable bool // PAYG 必须 true（loader 缺省拒绝——防一夜烧穿钱包的安全契约）
+	Action                 OverflowAction `yaml:"action"`
+	Target                 string         `yaml:"target"` // spill/degrade 的目标桶或模型
+	Factor                 *float64       `yaml:"factor"`
+	MaxWaitS               *int           `yaml:"max_wait_s"`               // queue 的最大等待
+	RequiresExplicitEnable bool           `yaml:"requires_explicit_enable"` // PAYG 必须 true（loader 缺省拒绝——防一夜烧穿钱包的安全契约）
 }
 
 // Bucket 是一个额度桶：一次请求命中的是 BucketSet（多桶同时扣减），不是单桶。
 type Bucket struct {
-	ID                 string
-	Unit               Dim   // 桶的计量单位
-	Capacity           Coeff // 常为 ParamRef（未知容量是辨识对象）
-	Window             Window
-	Scope              Scope
-	Charge             ChargeRule
-	Observability      []ObsBinding
-	Overflow           []OverflowStep
-	ExogenousDrain     bool   // 会被系统外的你本人消耗（网页/桌面端偷额度）
-	ExogenousRateParam string // 外生消耗率 ParamRef（带先验的隐变量，不当模型误差）
-	Notes              string
+	ID                 string         `yaml:"id"`
+	Unit               Dim            `yaml:"unit"`     // 桶的计量单位
+	Capacity           Coeff          `yaml:"capacity"` // 常为 ParamRef（未知容量是辨识对象）
+	Window             Window         `yaml:"window"`
+	Scope              Scope          `yaml:"scope"`
+	Charge             ChargeRule     `yaml:"charge"`
+	Observability      []ObsBinding   `yaml:"observability"`
+	Overflow           []OverflowStep `yaml:"overflow"`
+	ExogenousDrain     bool           `yaml:"exogenous_drain"`      // 会被系统外的你本人消耗（网页/桌面端偷额度）
+	ExogenousRateParam string         `yaml:"exogenous_rate_param"` // 外生消耗率 ParamRef（带先验的隐变量，不当模型误差）
+	Notes              string         `yaml:"notes"`
 }

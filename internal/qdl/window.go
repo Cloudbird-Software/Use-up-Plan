@@ -32,16 +32,16 @@ const (
 // Window 描述一个桶的时间语义。KindCandidates 必须不少于 1 个；
 // KindPosterior 为结构辨识（estimate 模块）回写的后验。
 type Window struct {
-	KindCandidates      []WindowKind
-	KindPosterior       map[WindowKind]float64 // kind -> 概率；nil = 尚未辨识
-	Length              time.Duration          // 窗长；token_bucket/never 可为零值
-	AnchorUTC           string                 // 账号锚点，如 "WED 20:00"；"UNKNOWN" = 待从 resets_at 序列反推
-	CalendarAlign       string                 // utc_midnight | local_midnight | billing_day
-	RefillRate          Coeff                  // token_bucket：单位/秒
-	Burst               Coeff                  // token_bucket：突发容量
-	ExpiresAt           *time.Time             // one_shot 的绝对过期时刻
-	Reset               ResetPolicy
-	RolloverCapMultiple *float64 // rollover_capped 的 k
+	KindCandidates      []WindowKind           `yaml:"kind_candidates"`
+	KindPosterior       map[WindowKind]float64 `yaml:"kind_posterior"` // kind -> 概率；nil = 尚未辨识
+	Length              Duration               `yaml:"length"`         // 窗长（ISO 8601 或 Go 原生时长）；token_bucket/never 可为零值
+	AnchorUTC           string                 `yaml:"anchor_utc"`     // 账号锚点，如 "WED 20:00"；"UNKNOWN" = 待从 resets_at 序列反推
+	CalendarAlign       string                 `yaml:"calendar_align"` // utc_midnight | local_midnight | billing_day
+	RefillRate          Coeff                  `yaml:"refill_rate"`    // token_bucket：单位/秒
+	Burst               Coeff                  `yaml:"burst"`          // token_bucket：突发容量
+	ExpiresAt           *time.Time             `yaml:"expires_at"`     // one_shot 的绝对过期时刻
+	Reset               ResetPolicy            `yaml:"reset"`
+	RolloverCapMultiple *float64               `yaml:"rollover_cap_multiple"` // rollover_capped 的 k
 }
 
 // Kind 返回窗口语义的 MAP 估计：后验概率最大者；无后验时取候选首位

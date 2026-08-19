@@ -17,9 +17,9 @@ const (
 
 // Term 是扣减函数的一个加权项：w_dim × q_dim(x_dim)。
 type Term struct {
-	Dim      Dim      // 计量维度（token 细分维权重不同，故逐维一项）
-	Coeff    Coeff    // 权重（常量或 ParamRef——一切系数皆可待估）
-	Quantize Quantize // 维度级量化（ceil to 1000 tokens 之类）
+	Dim      Dim      `yaml:"dim"`      // 计量维度（token 细分维权重不同，故逐维一项）
+	Coeff    Coeff    `yaml:"coeff"`    // 权重（常量或 ParamRef——一切系数皆可待估）
+	Quantize Quantize `yaml:"quantize"` // 维度级量化（ceil to 1000 tokens 之类）
 }
 
 // ChargeRule 是分段线性 + 量化的扣减函数（Intent §1.6，刻意限制表达力换取 LP 可解性）：
@@ -30,13 +30,13 @@ type Term struct {
 // 这是结构套利的机器可读来源：terms 满而 flat=0 是 per-token 桶；terms 空而 flat=1
 // 是 per-request 桶（大上下文任务在那里的边际 token 成本为 0）。
 type ChargeRule struct {
-	Flat             Coeff            // 每请求固定扣（per-request 桶为 1，terms 空）
-	Terms            []Term           // 加权项
-	ModelMultiplier  map[string]Coeff // 模型 ID / glob → 倍率（"claude-opus-*"）
-	EffortMultiplier map[string]Coeff // 努力级 → 倍率（thinking budget / reasoning effort）
-	Floor            Coeff            // 每请求最低扣
-	Quantize         Quantize         // 桶级量化
-	Linearization    Linearization    // 规划期线性近似声明（契约要求显式）
+	Flat             Coeff            `yaml:"flat"`              // 每请求固定扣（per-request 桶为 1，terms 空）
+	Terms            []Term           `yaml:"terms"`             // 加权项
+	ModelMultiplier  map[string]Coeff `yaml:"model_multiplier"`  // 模型 ID / glob → 倍率（"claude-opus-*"）
+	EffortMultiplier map[string]Coeff `yaml:"effort_multiplier"` // 努力级 → 倍率（thinking budget / reasoning effort）
+	Floor            Coeff            `yaml:"floor"`             // 每请求最低扣
+	Quantize         Quantize         `yaml:"quantize"`          // 桶级量化
+	Linearization    Linearization    `yaml:"linearization"`     // 规划期线性近似声明（契约要求显式）
 }
 
 // MultiplierFor 返回模型命中的模型倍率。多个 pattern 命中时取最长 pattern（更具体者）。

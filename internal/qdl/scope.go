@@ -15,12 +15,12 @@ const (
 
 // Scope 描述桶挂在谁身上。Models 为 nil 表示全部模型。
 type Scope struct {
-	Level              ScopeLevel
-	Models             []string // nil = 全部
-	ModelFamilies      []string
-	EffortTiers        []string
-	Channels           []string
-	Endpoints          []string
-	PoolID             string   // cross_product_pool 的共享标识
-	SharedWithProducts []string // ["claude.ai","desktop","cowork"]：外生消耗来源
+	Level              ScopeLevel `yaml:"level"`
+	Models             []string   `yaml:"models"` // nil = 全部
+	ModelFamilies      []string   `yaml:"model_families"`
+	EffortTiers        []string   `yaml:"effort_tiers"`
+	Channels           []string   `yaml:"channels"`
+	Endpoints          []string   `yaml:"endpoints"`
+	PoolID             string     `yaml:"pool_id"`              // cross_product_pool 的共享标识
+	SharedWithProducts []string   `yaml:"shared_with_products"` // ["claude.ai","desktop","cowork"]：外生消耗来源
 }
