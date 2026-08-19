@@ -10,6 +10,7 @@ package estimate
 import (
 	"fmt"
 	"math"
+	"sort"
 
 	"github.com/Cloudbird-Software/Use-up-Plan/internal/qdl"
 )
@@ -195,10 +196,18 @@ func logPosterior(mus []float64, obs []ObsPoint, theta qdl.ParamPoint, priors ma
 		}
 		total += lp
 	}
-	for id, v := range theta {
-		if d, ok := priors[id]; ok {
-			total += PriorLogProb(d, v)
+	// 先验项按参数 ID 排序求和：map 迭代序随机 + 浮点加法不可结合会产出
+	// ULP 级差异，量化似然窄谷里的优化器随之走不同线搜索路径（估计器必须
+	// 逐位可复现——审计与 warm-start 测试的硬要求）。
+	ids := make([]string, 0, len(theta))
+	for id := range theta {
+		if _, ok := priors[id]; ok {
+			ids = append(ids, id)
 		}
+	}
+	sort.Strings(ids)
+	for _, id := range ids {
+		total += PriorLogProb(priors[id], theta[id])
 	}
 	return total, nil
 }
