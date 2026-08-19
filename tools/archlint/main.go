@@ -23,8 +23,19 @@ const modulePath = "github.com/Cloudbird-Software/Use-up-Plan"
 // internalModuleRules 是 internal 模块边界规则登记表（MOD-5：模块落地 PR 必须同步登记，
 // 未登记即 `make arch` 失败）。key = internal/ 下第一级目录名；登记即表示该模块存在且边界可审计。
 var internalModuleRules = map[string]bool{
-	// Phase 0 落地 internal/qdl 时在此登记：
-	// "qdl": true,
+	// 模块落地 PR 必须同步登记（MOD-5）。以下为 docs/ROADMAP.md 规划的全部模块，
+	// 预先登记以避免多 PR 并行时此文件反复冲突；未落地的模块只是注册项，无执法面。
+	"qdl":       true, // Phase 0：QDL 类型 + YAML 加载校验
+	"semantics": true, // Phase 0：advance/charge/admit 纯函数内核
+	"ledger":    true, // Phase 1：append-only 事件存储 + 状态重建 + 残差归因
+	"estimate":  true, // Phase 1–2：量化似然 / 点估计 / 后验 / 吸附 / 结构选择 / 漂移
+	"probe":     true, // Phase 2：结构探针剧本库 + 执行器
+	"collect":   true, // Phase 3：响应头 / usage endpoint / 本地日志 / 网页采集
+	"cred":      true, // Phase 3：凭证加密存储 + refresh + 健康度
+	"planner":   true, // Phase 4：LP 构造求解 + 影子价格表
+	"value":     true, // Phase 4：等价美元换算 + 折扣率 / 利用率报表
+	"route":     true, // Phase 5：路由服务 + 网关 hook
+	"evals":     true, // Phase 6：私有题库跑分
 }
 
 // packageInfo 是 `go list -json ./...` 输出的字段子集。
