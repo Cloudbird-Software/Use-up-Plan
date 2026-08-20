@@ -213,7 +213,10 @@ func resetBucket(s *BucketState, rb *ResolvedBucket) {
 		capCarry := rb.RolloverCapMultiple * rb.Capacity
 		s.U = -minNonNeg(carry, capCarry)
 	case qdl.ResetRolloverUncapped:
-		s.U = -minNonNeg(rb.Capacity-s.U, rb.Capacity)
+		// 无上限结转：每跨一个重置时刻减一整个周期容量，剩余/欠额全额滚存
+		// （负 u = 结转余量，正 u = 欠额）。线性形式天然逐周期累积且保持
+		// 可组合性；截断到单周期容量会退化成 capped k=1。
+		s.U -= rb.Capacity
 	default: // zero / refill_to_full
 		s.U = 0
 	}
