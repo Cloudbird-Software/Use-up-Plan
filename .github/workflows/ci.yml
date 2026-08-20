@@ -51,7 +51,9 @@ jobs:
     # TI-R3 新增抑制/TI-R4 期望值改写 → 红；ADR 引用可豁免（计数入账）。
     # 非 PR 事件 n/a-success（推送面无 base...head 语义——无需登记 EXPECTED_SKIP）。
     # pin = CI-Workflows#17 feature 分支 SHA（临时；#17 合并后 re-pin main 发布 SHA）
-    uses: Cloudbird-Software/CI-Workflows/.github/workflows/test-integrity.yml@f73ee1cced8cc35bc160f5e7445844aee8fed8d1
+    uses: Cloudbird-Software/CI-Workflows/.github/workflows/test-integrity.yml@6f4bdb36f9f6502af77c77288c628cf1ef127b54
+    with:
+      detector-ref: 6f4bdb36f9f6502af77c77288c628cf1ef127b54
 
   adr-required:
 
