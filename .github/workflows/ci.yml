@@ -111,7 +111,7 @@ jobs:
           NEEDS: ${{ toJSON(needs) }}
           EVENT: ${{ github.event_name }}
         run: |
-          echo "$NEEDS" (event=$EVENT)
+          echo "$NEEDS (event=$EVENT)"
           # 严格断言（P1-3 .github#84 / ADR-0032，standards/automation/required-check-chains.md）：
           # skipped≠success——仅下列 EXPECTED_SKIP 登记的事件互补 job 允许 skipped，
           # 未登记的 skipped 与一切非 success（failure/cancelled/timed_out/startup_failure）一律红
