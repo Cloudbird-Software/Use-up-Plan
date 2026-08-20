@@ -1,5 +1,4 @@
 // Package estimate 实现 Intent §4 的参数辨识：量化似然、在线点估计、
-//（P2-1 T6 注入：纯源码演进，测试不动——预期 test-integrity 绿）
 // gauge fixing、整数吸附、离线后验与漂移检测。
 //
 // 深接口分层：本包只消费「(θ → 预测值 μ) + (观测值 y, 步长 s, 噪声 σ)」的
@@ -16,7 +15,7 @@ import (
 	"github.com/Cloudbird-Software/Use-up-Plan/internal/qdl"
 )
 
-const lnSqrt2Pi = 0.9189385332046727 // log(√(2π))
+const lnSqrt2Pi = 0.9189385332046727 // log(√(2π))，注记：P2-1 T6 演进（#86）
 
 // logPhiTail 是 log Φ(-w)（w ≥ 0，左尾）的稳定实现：
 // w < 8 时用 erfc（精确）；w ≥ 8 时用渐近展开 log(φ(w)/w)·(1-1/w²+3/w⁴)，
