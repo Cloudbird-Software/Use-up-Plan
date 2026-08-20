@@ -111,8 +111,8 @@ func mkStore(t *testing.T, events ...ledger.Payload) ledger.Store {
 func TestQuantizedLogProbShape(t *testing.T) {
 	// 中心最大、两侧单调下降
 	c := QuantizedLogProb(50, 50, 1, 0.5)
-	l := QuantizedLogProb(45, 50, 1, 0.5)
-	r := QuantizedLogProb(55, 50, 1, 0.5)
+	l := QuantizedLogProb(44, 50, 1, 0.5)
+	r := QuantizedLogProb(56, 50, 1, 0.5)
 	if l >= c || r >= c {
 		t.Fatalf("似然应在观测中心最大: c=%v l=%v r=%v", c, l, r)
 	}
