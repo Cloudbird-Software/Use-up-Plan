@@ -101,7 +101,7 @@ jobs:
           done
           exit $MISSING
 
-  gate:
+  gate2:
     if: always()
     needs: [hygiene, check, deps, deps-audit, adr-required]
     runs-on: ubuntu-latest
