@@ -125,7 +125,7 @@ jobs:
             | . as $e
             | select(.value.result != "success")
             | select((($skip | split(" ")) | index($e.key)) == null)
-            | "\($e.key)=\($e.value.result)")
+            | "\($e.key)=\($e.value.result)"')
           if [[ -n "$BAD" ]]; then
             echo "::error::以下 job 非 success 且不属于事件 $EVENT 的结构性预期跳过：$BAD（skipped≠success——ADR-0032）"; exit 1
           fi
