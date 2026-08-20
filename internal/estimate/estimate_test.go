@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -106,6 +107,28 @@ func mkStore(t *testing.T, events ...ledger.Payload) ledger.Store {
 }
 
 // ---- 似然数值面 ----
+
+// TestEstimateUnknownAnchorDiagnosis 回归：桶锚点未知（anchor_utc=UNKNOWN，
+// 待 C3 辨识写回）时 Predict 必失败 → NLL 在初始点就是 +Inf。旧错误只有
+// 「初始点目标值 +Inf」不透传根因，audit CLI 在 anthropic/max20 种子 plan
+// 上直接炸成天书。修复后错误必须带底层锚点诊断与桶 ID。
+func TestEstimateUnknownAnchorDiagnosis(t *testing.T) {
+	spec, truth := estSpec(false, false)
+	spec.Buckets[0].Window.KindCandidates = []qdl.WindowKind{qdl.WindowTumblingAccountAnchored}
+	spec.Buckets[0].Window.AnchorUTC = "UNKNOWN"
+	store := mkStore(t, synthEvents(t, spec, truth, 3)...)
+	ds, err := ExtractDataset(spec, store, ExtractOptions{})
+	if err != nil {
+		t.Fatalf("ExtractDataset: %v", err)
+	}
+	_, err = Estimate(ds, nil, nil, EstimateOptions{})
+	if err == nil {
+		t.Fatal("锚点未知应报错")
+	}
+	if !strings.Contains(err.Error(), "锚点未知") || !strings.Contains(err.Error(), "b5") {
+		t.Fatalf("错误必须透传底层锚点诊断与桶 ID: %v", err)
+	}
+}
 
 // TestQuantizedLogProbShape 量化似然的形状与数值稳定性。
 func TestQuantizedLogProbShape(t *testing.T) {
