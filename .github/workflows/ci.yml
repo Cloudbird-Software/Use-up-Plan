@@ -46,7 +46,15 @@ jobs:
       pull-requests: write
     uses: Cloudbird-Software/CI-Workflows/.github/workflows/dep-review.yml@9c20d43d60e9f9d1438f171aeee8e4dbdf02c08b # v1
 
+  test-integrity:
+    # P2-1 测试篡改检测门（ADR-0035 / .github #86）：TI-R1 删除/TI-R2 断言净降/
+    # TI-R3 新增抑制/TI-R4 期望值改写 → 红；ADR 引用可豁免（计数入账）。
+    # 非 PR 事件 n/a-success（推送面无 base...head 语义——无需登记 EXPECTED_SKIP）。
+    # pin = CI-Workflows#17 feature 分支 SHA（临时；#17 合并后 re-pin main 发布 SHA）
+    uses: Cloudbird-Software/CI-Workflows/.github/workflows/test-integrity.yml@f73ee1cced8cc35bc160f5e7445844aee8fed8d1
+
   adr-required:
+
     # C1 脚手架面（ADR-0021，GOVERNANCE C1 scope）：供应链入口文件变更须引用 ADR。
     # 存在性校验读公开仓 agent-registry/decisions（GITHUB_TOKEN 可读公开仓，fail-closed）。
     if: github.event_name == 'pull_request'
@@ -103,7 +111,7 @@ jobs:
 
   gate:
     if: always()
-    needs: [hygiene, check, deps, deps-audit, adr-required]
+    needs: [hygiene, check, deps, deps-audit, adr-required, test-integrity]
     runs-on: ubuntu-latest
     steps:
       - name: All required jobs green?
