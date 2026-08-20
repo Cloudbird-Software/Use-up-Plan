@@ -110,6 +110,42 @@ func TestParseBadTimestampHardFails(t *testing.T) {
 	}
 }
 
+// TestParseAssistantWithoutUsageBadTimestamp assistant 行缺 message/usage
+// 但时间戳也非法：仍须报错而非静默跳过（不变量 2 的字面语义——凡 assistant
+// 行时间戳即必填；否则损坏日志会被无声吞掉，半份账本比没有账本更危险）。
+func TestParseAssistantWithoutUsageBadTimestamp(t *testing.T) {
+	if _, err := ParseClaudeJSONL(strings.NewReader(`{"type":"assistant"}` + "\n")); err == nil {
+		t.Fatal("assistant 行缺时间戳应报错（即使无 usage）")
+	}
+	// 有合法时间戳但无 usage：正常跳过
+	turns := mustParseOne(t, `{"type":"assistant","timestamp":"2026-08-19T10:00:00Z"}`)
+	if len(turns) != 0 {
+		t.Fatalf("无 usage 的 assistant 行应跳过，得 %d 条", len(turns))
+	}
+}
+
+// TestParseNegativeTokenHardFails 负 token 是数据损坏：报错，绝不入账。
+// 回归：旧实现不做负值校验，且用代数和判零——input=-1/output=1 相消为 0
+// 会被当作「无计量」静默跳过，负值直接污染账本。
+func TestParseNegativeTokenHardFails(t *testing.T) {
+	if _, err := ParseClaudeJSONL(strings.NewReader(
+		claudeLine("assistant", "2026-08-19T10:00:00Z", "m", "m", -5, 0, 0, 2) + "\n")); err == nil {
+		t.Fatal("负 input_tokens 应报错")
+	}
+	if _, err := ParseClaudeJSONL(strings.NewReader(
+		claudeLine("assistant", "2026-08-19T10:00:00Z", "m", "m", -1, 0, 0, 1) + "\n")); err == nil {
+		t.Fatal("代数和为零的负值组合应报错而非静默跳过")
+	}
+}
+
+// TestParseZeroUsageSkipped 四维全零（真零，非相消）仍按约定跳过。
+func TestParseZeroUsageSkipped(t *testing.T) {
+	turns := mustParseOne(t, claudeLine("assistant", "2026-08-19T10:00:00Z", "m", "m", 0, 0, 0, 0))
+	if len(turns) != 0 {
+		t.Fatalf("全零 usage 应跳过，得 %d 条", len(turns))
+	}
+}
+
 // TestLoadClaudeLogsOrderAndMerge 目录遍历 + 跨文件时间排序。
 func TestLoadClaudeLogsOrderAndMerge(t *testing.T) {
 	root := t.TempDir()

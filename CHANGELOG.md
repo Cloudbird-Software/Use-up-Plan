@@ -102,6 +102,11 @@
 
 ### Fixed
 
+- collect 解析器数据完整性：负 token 原样入账且「代数和判零」会把
+  input=-1/output=1 相消成「无计量」静默跳过——负值直接污染账本。改为
+  逐维判零 + 负值报错；assistant 行时间戳校验前移到 message/usage 判断
+  之前（凡 assistant 行时间戳即必填，不变量 2 字面语义）。复现测试先行
+  （TestParseNegativeTokenHardFails / TestParseAssistantWithoutUsageBadTimestamp）。
 - 估计器逐位确定性：`logPosterior` 先验项改按参数 ID 排序求和（map 迭代序
   随机 + 浮点加法不可结合 → ULP 级差异 → 优化器在量化似然窄谷走不同
   线搜索路径，CI 上 TestEstimateWarmStart 间歇性失败即此症状）；
