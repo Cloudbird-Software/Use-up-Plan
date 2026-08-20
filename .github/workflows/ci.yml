@@ -109,8 +109,23 @@ jobs:
       - name: All required jobs green?
         env:
           NEEDS: ${{ toJSON(needs) }}
+          EVENT: ${{ github.event_name }}
         run: |
-          echo "$NEEDS"
-          if echo "$NEEDS" | jq -e '[to_entries[] | select(.value.result != "success" and .value.result != "skipped")] | length > 0' >/dev/null; then
-            echo "::error::有 job 未通过"; exit 1
+          echo "$NEEDS (event=$EVENT)"
+          # 严格断言（P1-3 .github#84 / ADR-0032，standards/automation/required-check-chains.md）：
+          # skipped≠success——仅下列 EXPECTED_SKIP 登记的事件互补 job 允许 skipped，
+          # 未登记的 skipped 与一切非 success（failure/cancelled/timed_out/startup_failure）一律红
+          case "$EVENT" in
+            pull_request) EXPECTED_SKIP="deps-audit" ;;
+            push)         EXPECTED_SKIP="deps adr-required" ;;
+            *)            EXPECTED_SKIP="" ;;
+          esac
+          BAD=$(echo "$NEEDS" | jq -r --arg skip "$EXPECTED_SKIP" '
+            to_entries[]
+            | . as $e
+            | select(.value.result != "success")
+            | select((($skip | split(" ")) | index($e.key)) == null)
+            | "\($e.key)=\($e.value.result)"')
+          if [[ -n "$BAD" ]]; then
+            echo "::error::以下 job 非 success 且不属于事件 $EVENT 的结构性预期跳过：$BAD（skipped≠success——ADR-0032）"; exit 1
           fi
