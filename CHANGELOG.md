@@ -102,6 +102,11 @@
 
 ### Fixed
 
+- semantics `rollover_uncapped` 重置语义错误：原实现把结转截断到单周期容量
+  （`u = -min(C-u, C)`），实际退化为 `rollover_capped` k=1。改为线性滚存
+  `u -= capacity`：剩余全额结转、跨周期无上限累积、超扣欠额滚入下一周期。
+  修复前先写复现测试（TestAdvanceRolloverUncapped：跨两个重置时刻无消耗
+  必须累积到 -180，原实现得 -100）。
 - 估计器逐位确定性：`logPosterior` 先验项改按参数 ID 排序求和（map 迭代序
   随机 + 浮点加法不可结合 → ULP 级差异 → 优化器在量化似然窄谷走不同
   线搜索路径，CI 上 TestEstimateWarmStart 间歇性失败即此症状）；

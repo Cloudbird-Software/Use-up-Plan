@@ -161,6 +161,28 @@ func TestAdvanceRollover(t *testing.T) {
 	}
 }
 
+func TestAdvanceRolloverUncapped(t *testing.T) {
+	rb := mkResolved(qdl.WindowTumblingAccountAnchored, 24*time.Hour)
+	rb.Anchor0, rb.HasAnchor = base.Add(-48*time.Hour), true
+	rb.Reset = qdl.ResetRolloverUncapped
+
+	// u=20 → 剩余 80 全部结转（无上限）→ u = 20-100 = -80
+	s := BucketState{U: 20}
+	if got := mustAdvance(t, s, rb, base.Add(-time.Hour), base.Add(time.Hour)); got.U != -80 {
+		t.Fatalf("rollover_uncapped 全额结转: %+v", got)
+	}
+	// 跨两个重置时刻无消耗：结转无上限累积 → u = 20-200 = -180
+	// （与 capped 的唯一区别就是不截断——逐周期归位自然累积）
+	if got := mustAdvance(t, s, rb, base.Add(-25*time.Hour), base.Add(time.Hour)); got.U != -180 {
+		t.Fatalf("rollover_uncapped 跨周期累积: %+v", got)
+	}
+	// 超扣（u > capacity）：欠额滚入下一周期 → u = 130-100 = 30
+	s.U = 130
+	if got := mustAdvance(t, s, rb, base.Add(-time.Hour), base.Add(time.Hour)); got.U != 30 {
+		t.Fatalf("rollover_uncapped 超扣欠额滚存: %+v", got)
+	}
+}
+
 func TestAdvanceErrors(t *testing.T) {
 	// 锚点未知
 	rb := mkResolved(qdl.WindowTumblingAccountAnchored, 24*time.Hour)
