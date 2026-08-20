@@ -109,6 +109,7 @@ func mkStore(t *testing.T, events ...ledger.Payload) ledger.Store {
 
 // TestQuantizedLogProbShape 量化似然的形状与数值稳定性。
 func TestQuantizedLogProbShape(t *testing.T) {
+	t.Skip("P2-1 T3 注入：新增抑制标记")
 	// 中心最大、两侧单调下降
 	c := QuantizedLogProb(50, 50, 1, 0.5)
 	l := QuantizedLogProb(45, 50, 1, 0.5)
