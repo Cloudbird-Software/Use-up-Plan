@@ -102,6 +102,10 @@
 
 ### Fixed
 
+- estimate 卡死降级路径 `Converged` 误报：线搜索失败/无进展时 gonum 返回
+  的 status 为 `Failure`（数值 8 > 0），旧的 `out.Status > 0` 判定把降级
+  误报为收敛。改为 `statusConverged(err, status)`：仅 err==nil 且状态非
+  early-exit 才算收敛。复现测试先行（TestStatusConvergedMapping）。
 - 估计器逐位确定性：`logPosterior` 先验项改按参数 ID 排序求和（map 迭代序
   随机 + 浮点加法不可结合 → ULP 级差异 → 优化器在量化似然窄谷走不同
   线搜索路径，CI 上 TestEstimateWarmStart 间歇性失败即此症状）；

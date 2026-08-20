@@ -118,7 +118,7 @@ func Estimate(ds *Dataset, base qdl.ParamPoint, theta0 qdl.ParamPoint, opts Esti
 	res.LogPosterior = -out.F
 	res.Iterations = out.Stats.MajorIterations
 	res.FuncEvals = out.Stats.FuncEvaluations
-	res.Converged = out.Status > 0
+	res.Converged = statusConverged(err, out.Status)
 	res.Status = out.Status.String()
 	// 纯似然项单独算一次（BIC 打分原料；多一次重放的代价只发生在收敛点）。
 	mus, err := ds.Predict(res.Theta)
@@ -131,6 +131,14 @@ func Estimate(ds *Dataset, base qdl.ParamPoint, theta0 qdl.ParamPoint, opts Esti
 	}
 	res.LogLikelihood = ll
 	return res, nil
+}
+
+// statusConverged 把 gonum 终止状态映射为「是否收敛」：仅当优化正常结束
+// （err==nil）且状态非 early-exit 才算收敛。卡死降级路径（err 非 nil，降级
+// 返回至今最优点）必须如实报告 false——gonum 的 Failure 状态数值为 8，
+// 直接判 status>0 会把降级误报为收敛（违反不变量 5 的「如实报告」）。
+func statusConverged(err error, st optimize.Status) bool {
+	return err == nil && st != optimize.NotTerminated && !st.Early()
 }
 
 // evalBoth 在给定完整 θ 下算一次对数后验与纯似然（不做优化）。
