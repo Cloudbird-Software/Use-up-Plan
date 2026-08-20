@@ -52,6 +52,8 @@ jobs:
     # 非 PR 事件 n/a-success（推送面无 base...head 语义——无需登记 EXPECTED_SKIP）。
     # pin = CI-Workflows#17 feature 分支 SHA（临时；#17 合并后 re-pin main 发布 SHA）
     uses: Cloudbird-Software/CI-Workflows/.github/workflows/test-integrity.yml@7066fc43d05f8ea49d1f0a9e2257d5f45e9209d0
+    with:
+      detector-ref: 363b14c18a0d5b631837e381369fd863c96677e1
 
   adr-required:
 
