@@ -37,6 +37,7 @@ var internalModuleRules = map[string]bool{
 	"value":     true, // Phase 4：等价美元换算 + 折扣率 / 利用率报表
 	"route":     true, // Phase 5：路由服务 + 网关 hook
 	"evals":     true, // Phase 6：私有题库跑分
+	"tip":       true, // P2-1 T5（#86 注入验证）：test-integrity 正常演进示例模块
 }
 
 // packageInfo 是 `go list -json ./...` 输出的字段子集。
