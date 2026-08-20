@@ -80,21 +80,37 @@ func ParseClaudeJSONL(r io.Reader) ([]ClaudeTurn, error) {
 		if err := json.Unmarshal(raw, &rec); err != nil {
 			return nil, fmt.Errorf("collect: 第 %d 行不是合法 JSON: %w", line, err)
 		}
-		if rec.Type != "assistant" || rec.Message == nil || rec.Message.Usage == nil {
+		if rec.Type != "assistant" {
 			continue
 		}
+		// 凡 assistant 行，时间戳即必填（不变量 2）——先验时间戳再判
+		// message/usage，否则「缺 usage 且缺时间戳」的损坏行会被静默吞掉。
 		ts, err := time.Parse(time.RFC3339Nano, rec.Timestamp)
 		if err != nil {
 			return nil, fmt.Errorf("collect: 第 %d 行时间戳 %q 无法解析: %w", line, rec.Timestamp, err)
 		}
+		if rec.Message == nil || rec.Message.Usage == nil {
+			continue
+		}
 		u := rec.Message.Usage
+		// 负 token 是数据损坏：报错，绝不入账（半份/假账比没有账本更危险）。
+		// 判零必须逐维进行——代数和会让 input=-1/output=1 相消成「无计量」。
 		dims := map[qdl.Dim]float64{
 			qdl.DimInputTokens:      u.InputTokens,
 			qdl.DimCacheWriteTokens: u.CacheCreationInputTokens,
 			qdl.DimCacheReadTokens:  u.CacheReadInputTokens,
 			qdl.DimOutputTokens:     u.OutputTokens,
 		}
-		if u.InputTokens+u.CacheCreationInputTokens+u.CacheReadInputTokens+u.OutputTokens == 0 {
+		allZero := true
+		for d, v := range dims {
+			if v < 0 {
+				return nil, fmt.Errorf("collect: 第 %d 行 %s 为负值（%v）——数据损坏", line, d, v)
+			}
+			if v != 0 {
+				allZero = false
+			}
+		}
+		if allZero {
 			continue // 无计量信息
 		}
 		turns = append(turns, ClaudeTurn{
