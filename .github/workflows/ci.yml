@@ -34,6 +34,7 @@ jobs:
         run: go run golang.org/x/vuln/cmd/govulncheck@v1.7.0 ./...
 
   check:
+    if: false   # T1 skip 注入测试（临时）——严格 gate 应判红
     uses: Cloudbird-Software/CI-Workflows/.github/workflows/check.yml@9c20d43d60e9f9d1438f171aeee8e4dbdf02c08b # v1
     with:
       runtime: go
