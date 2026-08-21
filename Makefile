@@ -9,7 +9,8 @@ lint:
 arch:
 	go run ./tools/archlint
 test:
-	go test -race ./...
+	mkdir -p coverage
+	go test -race -coverprofile=coverage/cover.out ./...
 build:
 	go build ./...
 check: lint arch test
