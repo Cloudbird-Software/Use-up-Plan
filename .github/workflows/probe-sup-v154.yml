@@ -1,0 +1,7 @@
+name: probe-probe-sup-v154
+on: [pull_request]
+jobs:
+  probe:
+    uses: Cloudbird-Software/CI-Workflows/.github/workflows/suppression-gate.yml@5d4e0f198345b8d8d533945dc2cd33decd20c71d
+    with:
+      detector-ref: 5d4e0f198345b8d8d533945dc2cd33decd20c71d
