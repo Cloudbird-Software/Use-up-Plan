@@ -165,3 +165,4 @@ jobs:
           if [[ -n "$BAD" ]]; then
             echo "::error::以下 job 非 success 且不属于事件 $EVENT 的结构性预期跳过：$BAD（skipped≠success——ADR-0032）"; exit 1
           fi
+# retrigger（标题补 ADR-0041 后需新事件）
