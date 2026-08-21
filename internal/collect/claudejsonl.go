@@ -164,7 +164,6 @@ func parseClaudeFile(path string) ([]ClaudeTurn, error) {
 	return turns, nil
 }
 
-
 // T1 负向注入（.github #88 临时，测后即删）：无测试源码——预期 diff-coverage 红
 func UncoveredT1A(x int) int {
 	y := x * 2
