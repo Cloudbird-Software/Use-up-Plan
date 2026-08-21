@@ -123,9 +123,23 @@ jobs:
     with:
       detector-ref: 4938955db008ddab2df170ec824c2cc3acbc1551
 
+  diff-coverage:
+    # P2-3 diff coverage 门（ADR-0037 / .github #88）：本次 PR 变更行覆盖率 ≥80%
+    #（policy 真源 .github governance/policy/testing.yaml#diff_coverage；非全局口径——
+    # 大 PR 稀释挡不住"顺手加无测试代码"）。覆盖率数据经 check job 的 reports 工件
+    #（coverage/cover.out，Makefile test 产出）。仅 PR 事件执法——push 面按 ADR-0032
+    # 规则 2 在 gate 的 EXPECTED_SKIP 登记。
+    if: github.event_name == 'pull_request'
+    needs: [check]
+    uses: Cloudbird-Software/CI-Workflows/.github/workflows/diff-coverage.yml@4938955db008ddab2df170ec824c2cc3acbc1551
+    with:
+      ciw-ref: 4938955db008ddab2df170ec824c2cc3acbc1551
+      coverage-format: go
+      coverage-file: coverage/cover.out
+
   gate:
     if: always()
-    needs: [hygiene, check, deps, deps-audit, adr-required, test-integrity, suppression-budget]
+    needs: [hygiene, check, deps, deps-audit, adr-required, test-integrity, suppression-budget, diff-coverage]
     runs-on: ubuntu-latest
     steps:
       - name: All required jobs green?
@@ -139,7 +153,7 @@ jobs:
           # 未登记的 skipped 与一切非 success（failure/cancelled/timed_out/startup_failure）一律红
           case "$EVENT" in
             pull_request) EXPECTED_SKIP="deps-audit" ;;
-            push)         EXPECTED_SKIP="deps adr-required" ;;
+            push)         EXPECTED_SKIP="deps adr-required diff-coverage" ;;
             *)            EXPECTED_SKIP="" ;;
           esac
           BAD=$(echo "$NEEDS" | jq -r --arg skip "$EXPECTED_SKIP" '
