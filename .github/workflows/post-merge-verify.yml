@@ -62,7 +62,7 @@ jobs:
       - name: App 令牌（AG-1 身份——revert PR 须能触发 gate）
         id: app
         continue-on-error: true
-        uses: actions/create-github-app-token@bcd2ba492189067047b6c1aa796996da409d3eb1 # v3.2.0
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
           app-id: 4632704
           private-key: ${{ secrets.AGENT_APP_SECRET }}
