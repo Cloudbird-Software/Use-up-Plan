@@ -1,0 +1,10 @@
+name: probe-harden-direct
+on: [pull_request]
+jobs:
+  hr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85b0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+      - run: echo ok
