@@ -1,0 +1,2 @@
+post-merge smoke anchor (ADR-0041 / .github #91)
+此文件存在性由 push 面 post-merge-verify 冒烟校验。
