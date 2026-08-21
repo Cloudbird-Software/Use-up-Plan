@@ -1,0 +1,9 @@
+name: probe-probe-check-v150
+on: [pull_request]
+jobs:
+  probe:
+    uses: Cloudbird-Software/CI-Workflows/.github/workflows/check.yml@b89d88696a5b184447c317851e9bcbebb733a439
+    with:
+      runtime: go
+      go-version: "1.25.1"
+      ciw-ref: b89d88696a5b184447c317851e9bcbebb733a439
