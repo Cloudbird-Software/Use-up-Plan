@@ -1,0 +1,7 @@
+name: probe-probe-sup-v153
+on: [pull_request]
+jobs:
+  probe:
+    uses: Cloudbird-Software/CI-Workflows/.github/workflows/suppression-budget.yml@370516d7dd0cdc6276ce7473df712c2c56203973
+    with:
+      detector-ref: 370516d7dd0cdc6276ce7473df712c2c56203973
