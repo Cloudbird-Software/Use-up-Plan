@@ -3,6 +3,6 @@ package autofix
 import "testing"
 
 // T1 全链路注入（.github #93 临时，测后即删）：确定性失败 ×3 次
-func TestAlwaysFailV4(t *testing.T) {
-	t.Fatal("doomed by design v4 (#93 T1)")
+func TestAlwaysFailV5(t *testing.T) {
+	t.Fatal("doomed by design v5 (#93 T1)")
 }
