@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   hygiene:
-    uses: Cloudbird-Software/CI-Workflows/.github/workflows/hygiene.yml@8cc9f76691276eb3f0bbfd059c2a45bdb0b75822 # v1
+    uses: Cloudbird-Software/CI-Workflows/.github/workflows/hygiene.yml@370516d7dd0cdc6276ce7473df712c2c56203973 # v1
 
   deps-audit:
     # push 面依赖审计（ADR-0021，红队 #11-C）：dependency-review 只支持 PR 事件（比对
@@ -34,9 +34,9 @@ jobs:
         run: go run golang.org/x/vuln/cmd/govulncheck@v1.7.0 ./...
 
   check:
-    uses: Cloudbird-Software/CI-Workflows/.github/workflows/check.yml@8cc9f76691276eb3f0bbfd059c2a45bdb0b75822 # v1
+    uses: Cloudbird-Software/CI-Workflows/.github/workflows/check.yml@370516d7dd0cdc6276ce7473df712c2c56203973 # v1
     with:
-      ciw-ref: 8cc9f76691276eb3f0bbfd059c2a45bdb0b75822
+      ciw-ref: 370516d7dd0cdc6276ce7473df712c2c56203973
       runtime: go
       go-version: "1.25.1"
 
@@ -45,16 +45,18 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
-    uses: Cloudbird-Software/CI-Workflows/.github/workflows/dep-review.yml@8cc9f76691276eb3f0bbfd059c2a45bdb0b75822 # v1
+    uses: Cloudbird-Software/CI-Workflows/.github/workflows/dep-review.yml@370516d7dd0cdc6276ce7473df712c2c56203973 # v1
+    with:
+      ciw-ref: 370516d7dd0cdc6276ce7473df712c2c56203973
 
   test-integrity:
     # P2-1 测试篡改检测门（ADR-0035 / .github #86）：TI-R1 删除/TI-R2 断言净降/
     # TI-R3 新增抑制/TI-R4 期望值改写 → 红；ADR 引用可豁免（计数入账）。
     # 非 PR 事件 n/a-success（推送面无 base...head 语义——无需登记 EXPECTED_SKIP）。
     # pin = CI-Workflows#17 feature 分支 SHA（临时；#17 合并后 re-pin main 发布 SHA）
-    uses: Cloudbird-Software/CI-Workflows/.github/workflows/test-integrity.yml@8cc9f76691276eb3f0bbfd059c2a45bdb0b75822
+    uses: Cloudbird-Software/CI-Workflows/.github/workflows/test-integrity.yml@370516d7dd0cdc6276ce7473df712c2c56203973
     with:
-      detector-ref: 8cc9f76691276eb3f0bbfd059c2a45bdb0b75822
+      detector-ref: 370516d7dd0cdc6276ce7473df712c2c56203973
 
   adr-required:
 
@@ -112,9 +114,18 @@ jobs:
           done
           exit $MISSING
 
+  suppression-budget:
+    # P2-2 抑制标记预算门（ADR-0036 / .github #87）：净增 ≤3/PR + 合入树总量棘轮
+    # + ADR 逃生门。独立 reusable（v1.5.1 内嵌 check.yml 实测触发平台 action 解析
+    # 故障，v1.5.3 起独立文件——ADR-0036 修订）。非 PR 事件 n/a-success（无需
+    # EXPECTED_SKIP 登记）。
+    uses: Cloudbird-Software/CI-Workflows/.github/workflows/suppression-budget.yml@370516d7dd0cdc6276ce7473df712c2c56203973
+    with:
+      detector-ref: 370516d7dd0cdc6276ce7473df712c2c56203973
+
   gate:
     if: always()
-    needs: [hygiene, check, deps, deps-audit, adr-required, test-integrity]
+    needs: [hygiene, check, deps, deps-audit, adr-required, test-integrity, suppression-budget]
     runs-on: ubuntu-latest
     steps:
       - name: All required jobs green?
