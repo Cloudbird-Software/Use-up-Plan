@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   hygiene:
-    uses: Cloudbird-Software/CI-Workflows/.github/workflows/hygiene.yml@4938955db008ddab2df170ec824c2cc3acbc1551 # v1
+    uses: Cloudbird-Software/CI-Workflows/.github/workflows/hygiene.yml@2520ea17016aaf81cc45215594259e12850a6bfb # v1
 
   deps-audit:
     # push 面依赖审计（ADR-0021，红队 #11-C）：dependency-review 只支持 PR 事件（比对
@@ -34,9 +34,9 @@ jobs:
         run: go run golang.org/x/vuln/cmd/govulncheck@v1.7.0 ./...
 
   check:
-    uses: Cloudbird-Software/CI-Workflows/.github/workflows/check.yml@4938955db008ddab2df170ec824c2cc3acbc1551 # v1
+    uses: Cloudbird-Software/CI-Workflows/.github/workflows/check.yml@2520ea17016aaf81cc45215594259e12850a6bfb # v1
     with:
-      ciw-ref: 4938955db008ddab2df170ec824c2cc3acbc1551
+      ciw-ref: 2520ea17016aaf81cc45215594259e12850a6bfb
       runtime: go
       go-version: "1.25.1"
 
@@ -45,18 +45,18 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
-    uses: Cloudbird-Software/CI-Workflows/.github/workflows/dep-review.yml@4938955db008ddab2df170ec824c2cc3acbc1551 # v1
+    uses: Cloudbird-Software/CI-Workflows/.github/workflows/dep-review.yml@2520ea17016aaf81cc45215594259e12850a6bfb # v1
     with:
-      ciw-ref: 4938955db008ddab2df170ec824c2cc3acbc1551
+      ciw-ref: 2520ea17016aaf81cc45215594259e12850a6bfb
 
   test-integrity:
     # P2-1 测试篡改检测门（ADR-0035 / .github #86）：TI-R1 删除/TI-R2 断言净降/
     # TI-R3 新增抑制/TI-R4 期望值改写 → 红；ADR 引用可豁免（计数入账）。
     # 非 PR 事件 n/a-success（推送面无 base...head 语义——无需登记 EXPECTED_SKIP）。
     # pin = CI-Workflows#17 feature 分支 SHA（临时；#17 合并后 re-pin main 发布 SHA）
-    uses: Cloudbird-Software/CI-Workflows/.github/workflows/test-integrity.yml@4938955db008ddab2df170ec824c2cc3acbc1551
+    uses: Cloudbird-Software/CI-Workflows/.github/workflows/test-integrity.yml@2520ea17016aaf81cc45215594259e12850a6bfb
     with:
-      detector-ref: 4938955db008ddab2df170ec824c2cc3acbc1551
+      detector-ref: 2520ea17016aaf81cc45215594259e12850a6bfb
 
   adr-required:
 
@@ -119,9 +119,9 @@ jobs:
     # + ADR 逃生门。独立 reusable（v1.5.1 内嵌 check.yml 实测触发平台 action 解析
     # 故障，v1.5.3 起独立文件——ADR-0036 修订）。非 PR 事件 n/a-success（无需
     # EXPECTED_SKIP 登记）。
-    uses: Cloudbird-Software/CI-Workflows/.github/workflows/suppression-gate.yml@4938955db008ddab2df170ec824c2cc3acbc1551
+    uses: Cloudbird-Software/CI-Workflows/.github/workflows/suppression-gate.yml@2520ea17016aaf81cc45215594259e12850a6bfb
     with:
-      detector-ref: 4938955db008ddab2df170ec824c2cc3acbc1551
+      detector-ref: 2520ea17016aaf81cc45215594259e12850a6bfb
 
   diff-coverage:
     # P2-3 diff coverage 门（ADR-0037 / .github #88）：本次 PR 变更行覆盖率 ≥80%
@@ -131,9 +131,9 @@ jobs:
     # 规则 2 在 gate 的 EXPECTED_SKIP 登记。
     if: github.event_name == 'pull_request'
     needs: [check]
-    uses: Cloudbird-Software/CI-Workflows/.github/workflows/diff-coverage.yml@4938955db008ddab2df170ec824c2cc3acbc1551
+    uses: Cloudbird-Software/CI-Workflows/.github/workflows/diff-coverage.yml@2520ea17016aaf81cc45215594259e12850a6bfb
     with:
-      ciw-ref: 4938955db008ddab2df170ec824c2cc3acbc1551
+      ciw-ref: 2520ea17016aaf81cc45215594259e12850a6bfb
       coverage-format: go
       coverage-file: coverage/cover.out
 
@@ -165,3 +165,4 @@ jobs:
           if [[ -n "$BAD" ]]; then
             echo "::error::以下 job 非 success 且不属于事件 $EVENT 的结构性预期跳过：$BAD（skipped≠success——ADR-0032）"; exit 1
           fi
+# retrigger（标题补 ADR-0041 后需新事件）
