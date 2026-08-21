@@ -82,9 +82,32 @@ jobs:
             exit 3
           fi
           TITLE="[auto-revert] #$PRN：post-merge 冒烟失败（run ${{ github.run_id }}）"
-          RESP=$(gh api -X POST "repos/$REPO/pulls/$PRN/revert" -f title="$TITLE"             -f body="post-merge-verify 冒烟失败，自动回滚（ADR-0041）。原 PR #$PRN，commit ${SHA:0:8}，失败 run：$RUN_URL"             --jq '.number')
-          echo "revert PR #$RESP 已建，enable auto-merge"
+          # revert REST 端点本环境 404——兼容路径：建父提交分支 + 逐文件恢复父状态 + PR
+          PARENT=$(gh api "repos/$REPO/commits/$SHA" --jq '.parents[0].sha')
+          [ -n "$PARENT" ] || { echo "无父提交"; exit 3; }
+          BR="auto-revert-$PRN-$(date +%s)"
+          gh api "repos/$REPO/git/refs" -f ref="refs/heads/$BR" -f sha="$PARENT" --jq '.ref'
+          gh api "repos/$REPO/pulls/$PRN/files?per_page=100" --paginate --jq '.[].filename' | while read -r F; do
+            [ -n "$F" ] || continue
+            ENC=$(python3 -c "import urllib.parse,sys;print(urllib.parse.quote(sys.argv[1]))" "$F")
+            PC=$(gh api "repos/$REPO/contents/$ENC?ref=$PARENT" --jq '.content' 2>/dev/null || true)
+            CS=$(gh api "repos/$REPO/contents/$ENC?ref=$BR" --jq '.sha' 2>/dev/null || true)
+            if [ -n "$PC" ]; then
+              if [ -n "$CS" ]; then
+                gh api -X PUT "repos/$REPO/contents/$ENC" -f message="revert: $F -> 父提交状态" -f branch="$BR" -f content="$PC" -f sha="$CS" --jq '.commit.sha' >/dev/null
+              else
+                gh api -X PUT "repos/$REPO/contents/$ENC" -f message="revert: 恢复 $F" -f branch="$BR" -f content="$PC" --jq '.commit.sha' >/dev/null
+              fi
+            else
+              if [ -n "$CS" ]; then
+                gh api -X DELETE "repos/$REPO/contents/$ENC" -f message="revert: 删除 PR 新增的 $F" -f branch="$BR" -f sha="$CS" >/dev/null
+              fi
+            fi
+          done
+          RESP=$(gh api -X POST "repos/$REPO/pulls" -f title="$TITLE" -f head="$BR" -f base=main             -f body="post-merge-verify 冒烟失败，自动回滚（ADR-0041，内容 API 兼容路径——revert REST 端点本环境 404）。原 PR #$PRN，commit ${SHA:0:8}，失败 run：$RUN_URL"             --jq '.number')
+          echo "revert PR #$RESP 已建，enable auto-merge（revert 照常过 gate）"
           gh pr merge "$RESP" --repo "$REPO" --auto --squash
+          gh issue create --repo "$REPO" --title "P0 通知: auto-revert #$RESP 已启动（原 PR #$PRN，run ${{ github.run_id }}）"             --body "合并 ${SHA:0:8} 后冒烟失败。自动回滚已执行：revert PR #$RESP（过 gate 后 auto-merge）。失败 run：$RUN_URL（ADR-0041）" --label P0 || true
       - name: 降级/兜底告警（revert 不可用或被闸拦）
         if: failure() || steps.app.outcome != 'success' || steps.guard.outputs.nested == 'true' || steps.guard.outputs.recent != '0' || steps.guard.outputs.reverts_24h >= '3'
         env:
