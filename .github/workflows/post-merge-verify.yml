@@ -55,9 +55,9 @@ jobs:
           else
             echo "nested=false" >> "$GITHUB_OUTPUT"
           fi
-          RECENT=$(gh api "repos/$REPO/pulls?state=all&sort=created&direction=desc&per_page=30"             --jq '[.[] | select(.title | test("\[auto-revert\]")) | select(.created_at > (now - 3600 | todateiso8601))] | length')
+          RECENT=$(gh api "repos/$REPO/pulls?state=all&sort=created&direction=desc&per_page=30"             --jq '[.[] | select(.title | test("\\[auto-revert\\]")) | select(.created_at > (now - 3600 | todateiso8601))] | length')
           echo "recent=$RECENT" >> "$GITHUB_OUTPUT"
-          RCNT=$(gh api "repos/$REPO/pulls?state=all&sort=updated&direction=desc&per_page=50"             --jq '[.[] | select(.title | test("\[auto-revert\]")) | select(.merged_at != null) | select(.merged_at > (now - 86400 | todateiso8601))] | length')
+          RCNT=$(gh api "repos/$REPO/pulls?state=all&sort=updated&direction=desc&per_page=50"             --jq '[.[] | select(.title | test("\\[auto-revert\\]")) | select(.merged_at != null) | select(.merged_at > (now - 86400 | todateiso8601))] | length')
           echo "reverts_24h=$RCNT" >> "$GITHUB_OUTPUT"
       - name: App 令牌（AG-1 身份——revert PR 须能触发 gate）
         id: app
