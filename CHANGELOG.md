@@ -113,6 +113,11 @@
   逐维判零 + 负值报错；assistant 行时间戳校验前移到 message/usage 判断
   之前（凡 assistant 行时间戳即必填，不变量 2 字面语义）。复现测试先行
   （TestParseNegativeTokenHardFails / TestParseAssistantWithoutUsageBadTimestamp）。
+- semantics `rollover_uncapped` 重置语义错误：原实现把结转截断到单周期容量
+  （`u = -min(C-u, C)`），实际退化为 `rollover_capped` k=1。改为线性滚存
+  `u -= capacity`：剩余全额结转、跨周期无上限累积、超扣欠额滚入下一周期。
+  修复前先写复现测试（TestAdvanceRolloverUncapped：跨两个重置时刻无消耗
+  必须累积到 -180，原实现得 -100）。
 - estimate 卡死降级路径 `Converged` 误报：线搜索失败/无进展时 gonum 返回
   的 status 为 `Failure`（数值 8 > 0），旧的 `out.Status > 0` 判定把降级
   误报为收敛。改为 `statusConverged(err, status)`：仅 err==nil 且状态非
