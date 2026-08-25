@@ -77,6 +77,14 @@ func Estimate(ds *Dataset, base qdl.ParamPoint, theta0 qdl.ParamPoint, opts Esti
 	}
 
 	if f := prob.NLL(nil); math.IsInf(f, 1) || math.IsNaN(f) {
+		// 诊断：NLL 把 Predict 错误统一吞成 +Inf（不变量 3），但初始点就
+		// 失败意味着结构性不相容（典型：桶锚点未知 anchor_utc=UNKNOWN，
+		// 待 C3 辨识写回）——必须把底层原因透传给调用方，否则排障只能
+		// 读源码。Predict 成功而后验仍 +Inf 的（先验面问题）走通用文案。
+		thetaInit := prob.Space.CompleteTheta(prob.Space.FromZ(prob.zRef), prob.Base)
+		if _, perr := ds.Predict(thetaInit); perr != nil {
+			return nil, fmt.Errorf("estimate: 初始点目标值 %v——结构性不相容: %w", f, perr)
+		}
 		return nil, fmt.Errorf("estimate: 初始点目标值 %v——theta0/base 与 spec 或数据集不相容", f)
 	}
 

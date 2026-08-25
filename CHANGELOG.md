@@ -102,6 +102,12 @@
 
 ### Fixed
 
+- estimate 初始点 +Inf 错误不可诊断：桶锚点未知（anchor_utc=UNKNOWN，待
+  C3 写回）时 audit CLI 在 anthropic/max20 种子 plan 上只报「初始点目标值
+  +Inf」不透传根因。改为初始点失败时重放 Predict 捕获底层错误并 %w 透传
+  （指认锚点与桶 ID）。新增 audit 种子 plan 冒烟测试（TestSeedPlanAuditSmoke
+  KnownAnchor/UnknownAnchor）——B6 端到端此前只测合成 spec，真实 plan 上
+  的失败因此漏网。复现测试先行（TestEstimateUnknownAnchorDiagnosis）。
 - 估计器逐位确定性：`logPosterior` 先验项改按参数 ID 排序求和（map 迭代序
   随机 + 浮点加法不可结合 → ULP 级差异 → 优化器在量化似然窄谷走不同
   线搜索路径，CI 上 TestEstimateWarmStart 间歇性失败即此症状）；
