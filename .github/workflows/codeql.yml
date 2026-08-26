@@ -1,0 +1,40 @@
+# CodeQL 静态安全扫描（SC-1 治理对齐补面：Go 项目此前无 CodeQL 扫描；SC-1：CodeQL medium+ 阻断合并的数据源）。
+# Scorecard 项 "CodeQL" 的数据源；SARIF 上传到 Security 标签页。
+# 版本钉 hash 与 ci.yml / scorecard.yml 保持一致（zizmor unpinned-uses）。
+name: codeql
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "0 7 * * 2"
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      # SARIF 上传必需
+      security-events: write
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.25.1"
+          # PR 面禁共享缓存（zizmor cache-poisoning）
+          cache: false
+      - uses: github/codeql-action/init@c16c0f3f2812ec4bb3750a5ed64873fe2ce0fbef # codeql-bundle-v2.26.3
+        with:
+          languages: go
+      - uses: github/codeql-action/autobuild@c16c0f3f2812ec4bb3750a5ed64873fe2ce0fbef # codeql-bundle-v2.26.3
+      - uses: github/codeql-action/analyze@c16c0f3f2812ec4bb3750a5ed64873fe2ce0fbef # codeql-bundle-v2.26.3
+        with:
+          category: "/language:go"

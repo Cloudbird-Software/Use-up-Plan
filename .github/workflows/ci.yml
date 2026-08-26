@@ -1,6 +1,10 @@
 name: CI
 on:
+  merge_group:
+    # ADR-0042：merge queue 必需订阅
+    types: [checks_requested]
   pull_request:
+
   push:
     branches: [main]
 
@@ -61,7 +65,7 @@ jobs:
   adr-required:
 
     # C1 脚手架面（ADR-0021，GOVERNANCE C1 scope）：供应链入口文件变更须引用 ADR。
-    # 存在性校验读公开仓 agent-registry/decisions（GITHUB_TOKEN 可读公开仓，fail-closed）。
+    # 存在性校验读公开仓 archive/adr（ADR-0085 家园单仓化，GITHUB_TOKEN 可读公开仓，fail-closed）。
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -154,6 +158,7 @@ jobs:
           case "$EVENT" in
             pull_request) EXPECTED_SKIP="deps-audit" ;;
             push)         EXPECTED_SKIP="deps adr-required diff-coverage" ;;
+            merge_group)  EXPECTED_SKIP="deps deps-audit adr-required diff-coverage" ;;   # ADR-0042
             *)            EXPECTED_SKIP="" ;;
           esac
           BAD=$(echo "$NEEDS" | jq -r --arg skip "$EXPECTED_SKIP" '
