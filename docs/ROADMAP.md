@@ -13,8 +13,8 @@
 - 治理收口（T0 阻塞项已全部消除）：
   1. ci.yml check job 已切 `runtime: go`（go-version 1.25.1）；push 面 deps-audit 已由
      npm audit 换 govulncheck@v1.7.0（本仓首个正式 PR，ADR-0028）。
-  2. adr-required 引用 ADR-0028（Go 语言基线，agent-registry/decisions）；建仓申报与
-     bootstrap 直推豁免见 ADR-0024（agent-registry PR #36 / .github PR #77）。
+  2. adr-required 引用 ADR-0028（Go 语言基线，archive/adr/）；建仓申报与
+     bootstrap 直推豁免见 ADR-0024（archive/adr/；原 agent-registry PR #36 / .github PR #77）。
   3. governance/REPOS.yaml 已申报本仓（GM-4，.github PR #77）。
   4. 依赖提案（goccy/go-yaml / gonum / errcheck / goleak）已获 owner 批准（2026-08-19），
      清单与状态见 ARCHITECTURE.md；随对应 Phase PR 落地引入。

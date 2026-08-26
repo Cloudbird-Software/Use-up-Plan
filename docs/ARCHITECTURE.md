@@ -64,9 +64,9 @@ LP 求解器（Phase 4 前）与贝叶斯 NUTS 选型另行提案——Go 生态
 ## 治理收口记录（2026-08-19，原「已知人工待办」全部消除）
 
 1. ci.yml：check job 已切 `runtime: go`（go-version "1.25.1"）；push 面 deps-audit 已由
-   npm audit 换 govulncheck@v1.7.0——决策记录见 ADR-0028（agent-registry/decisions）。
+   npm audit 换 govulncheck@v1.7.0——决策记录见 archive/adr/ADR-0028-use-up-plan-go-language-baseline.md（ADR-0085 家园单仓化）。
 2. adr-required：首个 C1 面 PR 引用 ADR-0028（Go 语言基线）；建仓申报与 bootstrap 直推
-   豁免登记见 ADR-0024（agent-registry PR #36 / .github PR #77）。
+   豁免登记见 archive/adr/ADR-0024-use-up-plan-bootstrap-onboarding.md（原 agent-registry PR #36 / .github PR #77，仓已归档）。
 3. governance/REPOS.yaml 已申报本仓（GM-4，.github PR #77）。
 4. 依赖提案已获 owner 批准（2026-08-19）：goccy/go-yaml（MIT）、gonum.org/v1/gonum
    （BSD-3-Clause）、errcheck（MIT）、goleak（MIT）——按 Phase 落地引入。
